@@ -5,8 +5,10 @@ import { useRoute } from 'vue-router'
 import { api, post } from '@/api/client'
 import type { SearchResult, SetDetail, SetFilm } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import FilmTile from '@/components/FilmTile.vue'
 import LogSheet from '@/components/LogSheet.vue'
+import TicketProgress from '@/components/TicketProgress.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 
 const route = useRoute()
@@ -82,18 +84,27 @@ async function onLogged() {
 
     <p v-if="notFound" class="muted">This set doesn't exist.</p>
     <template v-else-if="set">
-      <div class="heading">
-        <h2>{{ set.title }}</h2>
-        <span class="progress" :class="{ done: complete }">
-          {{ complete ? 'Complete ✓' : `${set.watched} of ${set.total}` }}
+      <section class="ticket">
+        <div class="heading">
+          <h2>{{ set.title }}</h2>
+          <span class="progress">
+            {{ complete ? 'Complete ✓' : `${set.watched} of ${set.total}` }}
+          </span>
+        </div>
+        <TicketProgress :watched="set.watched" :total="set.total" />
+        <span class="to-go">
+          {{ complete ? 'Every film watched. Take a bow.' : `${set.total - set.watched} to go.` }}
         </span>
-      </div>
+      </section>
 
-      <p v-if="selecting" class="muted hint">Tap the films you've already seen.</p>
-      <p v-else-if="!complete" class="muted hint">
-        Tap a film to log it, or
-        <button class="link" @click="selecting = true">tick off ones you've seen</button>.
-      </p>
+      <div v-if="!complete" class="hint-row">
+        <span class="muted">
+          {{ selecting ? "Tap the films you've already seen" : 'Tap a film to log it' }}
+        </span>
+        <button v-if="!selecting" class="mustard small" @click="selecting = true">
+          <AppIcon name="check" :size="14" /> Tick off seen
+        </button>
+      </div>
 
       <ul class="film-grid">
         <li v-for="film in set.films" :key="film.film_id">
@@ -110,9 +121,11 @@ async function onLogged() {
       </ul>
 
       <div v-if="selecting" class="action-bar">
-        <button class="secondary" @click="cancelSelecting">Cancel</button>
+        <button class="plain" @click="cancelSelecting">
+          <AppIcon name="close" :size="14" /> Cancel
+        </button>
         <button :disabled="!ticked.size || busy" @click="saveTicked">
-          Save {{ ticked.size || '' }} as seen
+          <AppIcon name="check" :size="14" /> Save {{ ticked.size || '' }} as seen
         </button>
       </div>
     </template>
@@ -125,6 +138,18 @@ async function onLogged() {
 </template>
 
 <style scoped>
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #2a1a12;
+  color: #f6ebd9;
+  --hole-on: #f6ebd9;
+  --hole-off: #8a7360;
+}
+
 .heading {
   display: flex;
   align-items: baseline;
@@ -133,28 +158,33 @@ async function onLogged() {
 }
 
 .heading h2 {
-  margin: 0.5rem 0;
+  margin: 0;
+  font-size: 1.5rem;
 }
 
 .progress {
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mustard);
   white-space: nowrap;
 }
 
-.progress.done {
-  color: var(--accent);
-  font-weight: 600;
+.to-go {
+  font-size: 0.85rem;
+  color: #e8d9c2;
 }
 
-.hint {
-  margin-top: 0;
+.hint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 1rem 0;
 }
 
-button.secondary {
-  background: transparent;
-  color: var(--fg);
-  border: 1px solid var(--border);
-  flex: 0 0 auto;
+.ticket + .film-grid {
+  margin-top: 1.25rem;
 }
 </style>

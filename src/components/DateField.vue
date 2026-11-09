@@ -45,17 +45,27 @@ function onInput(event: Event) {
 
 .date-label {
   display: inline-block;
-  padding: 0.5rem 0.8rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  padding: 0.45rem 0.8rem;
+  border: 2px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--card);
+  box-shadow: 0 3px 0 var(--edge);
+  font-family: var(--mono);
+  font-size: 1rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+
+.date-field:focus-within .date-label {
+  outline: 3px solid var(--mustard);
+  outline-offset: 2px;
 }
 
 .date-input {
   position: absolute;
   inset: 0;
   width: 100%;
+  padding: 0;
   opacity: 0;
   cursor: pointer;
 }

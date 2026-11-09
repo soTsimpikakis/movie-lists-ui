@@ -31,6 +31,7 @@ async function submit() {
 
 <template>
   <main class="page narrow">
+    <span class="admit">Members only · admit one</span>
     <h1>Movie Club</h1>
     <form class="stack" @submit.prevent="submit">
       <label>
@@ -52,6 +53,20 @@ async function submit() {
 </template>
 
 <style scoped>
+.admit {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+h1 {
+  margin: 0.4rem 0 1.25rem;
+  font-size: 2.2rem;
+  color: var(--red);
+}
+
 .invite-note {
   margin-top: 2rem;
   font-size: 0.9rem;

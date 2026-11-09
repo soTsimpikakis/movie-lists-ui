@@ -24,7 +24,7 @@ const src = computed(() => posterUrl(props.path, props.size))
   aspect-ratio: 2 / 3;
   object-fit: cover;
   border-radius: 0.4rem;
-  background: var(--border);
+  background: var(--card);
 }
 
 .poster-missing {

@@ -42,11 +42,15 @@ async function submit() {
 
 <template>
   <main class="page narrow">
+    <span class="admit">Admit one · new member</span>
     <h1>Welcome to Movie Club</h1>
-    <p v-if="invalid">
-      This invite link is invalid or has expired. Ask whoever sent it for a new one, or
-      <RouterLink :to="{ name: 'login' }">log in</RouterLink>.
-    </p>
+    <div v-if="invalid" class="stack">
+      <p>
+        This invite link is invalid or has expired. Ask whoever sent it for a new one, or log in if
+        you already have an account.
+      </p>
+      <RouterLink :to="{ name: 'login' }" class="button-link">Log in</RouterLink>
+    </div>
     <form v-else-if="email" class="stack" @submit.prevent="submit">
       <p class="muted">Setting up an account for {{ email }}</p>
       <label>
@@ -68,3 +72,18 @@ async function submit() {
     </form>
   </main>
 </template>
+
+<style scoped>
+.admit {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+h1 {
+  margin: 0.4rem 0 1.25rem;
+  font-size: 1.8rem;
+}
+</style>

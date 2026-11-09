@@ -4,7 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { api, post } from '@/api/client'
 import type { Checklist } from '@/api/types'
+import AppIcon from '@/components/AppIcon.vue'
 import FilmTile from '@/components/FilmTile.vue'
+import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 import { useFilmSearch } from '@/composables/useFilmSearch'
 
@@ -55,21 +57,20 @@ async function save() {
       </p>
     </template>
     <template v-else>
-      <RouterLink :to="{ name: 'home' }" class="back">← Watched</RouterLink>
+      <RouterLink :to="{ name: 'home' }" class="button-link plain small back">
+        <AppIcon name="back" :size="14" /> Watched
+      </RouterLink>
       <h1>Movies I've seen</h1>
       <p class="muted">
         Tick films you watched before Movie Club. Films you've already logged are ticked.
       </p>
     </template>
 
-    <input
+    <SearchField
       v-model="query"
       class="search"
-      type="search"
       placeholder="Find another film…"
-      enterkeyhint="search"
-      autocomplete="off"
-      aria-label="Search for a film you've seen"
+      label="Search for a film you've seen"
     />
 
     <section v-if="search.active.value" aria-live="polite">
@@ -128,9 +129,12 @@ async function save() {
     <TmdbCredit />
 
     <div class="action-bar">
-      <RouterLink v-if="welcome" :to="{ name: 'home' }" class="skip">Skip for now</RouterLink>
+      <RouterLink v-if="welcome" :to="{ name: 'home' }" class="button-link plain skip">
+        Skip for now
+      </RouterLink>
       <p v-if="error" class="error">{{ error }}</p>
       <button :disabled="!ticked.size || busy" @click="save">
+        <AppIcon name="check" :size="14" />
         {{ busy ? 'Saving…' : ticked.size ? `Save ${ticked.size} films` : 'Tick films to save' }}
       </button>
     </div>
@@ -139,23 +143,25 @@ async function save() {
 
 <style scoped>
 .back {
-  display: inline-block;
-  margin-bottom: 0.5rem;
-  text-decoration: none;
+  margin-bottom: 1rem;
 }
 
 h1 {
   margin: 0.25rem 0 0.5rem;
+  font-size: 1.6rem;
 }
 
 h2 {
   font-size: 1rem;
-  margin: 1.5rem 0 0.75rem;
+  margin: 1.75rem 0 0.75rem;
 }
 
 .search {
-  width: 100%;
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.action-bar .error {
+  flex-basis: 100%;
 }
 
 .skip {

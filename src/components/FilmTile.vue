@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue'
 import PosterImage from '@/components/PosterImage.vue'
 
 defineProps<{
@@ -24,7 +25,7 @@ defineProps<{
   >
     <span class="poster-wrap">
       <PosterImage :path="posterPath" :title="title" />
-      <span v-if="checked" class="tick" aria-hidden="true">✓</span>
+      <span v-if="checked" class="tick"><AppIcon name="check" :size="16" /></span>
     </span>
     <span class="title">{{ title }}</span>
     <span class="meta"
@@ -35,20 +36,25 @@ defineProps<{
 
 <style scoped>
 .tile {
-  display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  align-items: stretch;
+  gap: 0.3rem;
   width: 100%;
   padding: 0;
+  border: 0;
   background: none;
+  box-shadow: none;
   color: var(--fg);
   text-align: left;
-  font-weight: 400;
 }
 
 .tile:disabled {
   opacity: 1;
-  cursor: default;
+}
+
+.tile:active:not(:disabled) {
+  transform: scale(0.97);
+  box-shadow: none;
 }
 
 .poster-wrap {
@@ -56,37 +62,47 @@ defineProps<{
   display: block;
 }
 
+.poster-wrap :deep(.poster) {
+  border: 2px solid var(--line);
+  border-radius: 0.5rem;
+}
+
 .muted :deep(.poster) {
-  filter: grayscale(1);
-  opacity: 0.4;
+  filter: grayscale(1) sepia(0.35);
+  opacity: 0.45;
+  border-style: dashed;
+  border-color: var(--faint);
 }
 
 .checked :deep(.poster) {
-  outline: 3px solid var(--accent);
-  outline-offset: -3px;
+  outline: 3px solid var(--red);
+  outline-offset: -5px;
 }
 
 .tick {
   position: absolute;
   top: 0.35rem;
   right: 0.35rem;
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.7rem;
+  height: 1.7rem;
   display: grid;
   place-items: center;
+  border: 2px solid var(--line);
   border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  font-weight: 700;
+  background: var(--mustard);
+  color: var(--on-mustard);
 }
 
 .title {
-  font-size: 0.85rem;
-  line-height: 1.25;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .meta {
-  font-size: 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 500;
   color: var(--muted);
 }
 </style>

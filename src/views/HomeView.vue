@@ -4,9 +4,11 @@ import { computed, onMounted, ref } from 'vue'
 import { api } from '@/api/client'
 import type { SearchResult, Watch } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import FilmTile from '@/components/FilmTile.vue'
 import LogSheet from '@/components/LogSheet.vue'
 import PosterImage from '@/components/PosterImage.vue'
+import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 import { useFilmSearch } from '@/composables/useFilmSearch'
 import { formatDate, ordinal } from '@/lib/format'
@@ -51,14 +53,11 @@ async function onLogged(logged: Watch) {
   <main class="page">
     <AppHeader />
 
-    <input
+    <SearchField
       v-model="query"
       class="search"
-      type="search"
       placeholder="Log a film…"
-      enterkeyhint="search"
-      autocomplete="off"
-      aria-label="Search films to log"
+      label="Search films to log"
     />
 
     <section v-if="search.active.value" aria-live="polite">
@@ -82,23 +81,25 @@ async function onLogged(logged: Watch) {
       <p v-if="watches === null" class="muted">Loading…</p>
       <div v-else-if="!watches.length" class="empty">
         <p class="muted">Nothing logged yet. Search for the last film you watched, or</p>
-        <RouterLink :to="{ name: 'seen' }" class="button-link">
-          tick off films you've already seen
+        <RouterLink :to="{ name: 'seen' }" class="button-link mustard">
+          <AppIcon name="check" /> Tick off films you've already seen
         </RouterLink>
       </div>
       <template v-else>
         <div class="list-heading">
           <h2>
-            Watched <span class="muted">· {{ watches.length }}</span>
+            Watched <span class="count">· {{ watches.length }}</span>
           </h2>
-          <RouterLink :to="{ name: 'seen' }">Update my library</RouterLink>
+          <RouterLink :to="{ name: 'seen' }" class="button-link mustard small">
+            <AppIcon name="plus" :size="14" /> Update my library
+          </RouterLink>
         </div>
 
         <template v-for="group in groups" :key="group.key">
           <h3 v-if="group.title" class="group-heading">
-            {{ group.title }} <span class="muted">· {{ group.items.length }}</span>
+            {{ group.title }} · {{ group.items.length }}
           </h3>
-          <ul class="watches">
+          <ul class="watches" :class="group.key">
             <li v-for="w in group.items" :key="w.id">
               <RouterLink class="watch" :to="{ name: 'watch', params: { id: w.id } }">
                 <PosterImage
@@ -112,7 +113,7 @@ async function onLogged(logged: Watch) {
                     {{ w.film.title }}
                     <span v-if="w.film.favourite" class="heart" aria-label="Favourite">♥</span>
                   </span>
-                  <span class="muted small">
+                  <span class="meta">
                     {{ w.watched_on ? formatDate(w.watched_on) : (w.film.year ?? '') }}
                     <template v-if="w.watch_number > 1">
                       · {{ ordinal(w.watch_number) }} watch
@@ -120,11 +121,11 @@ async function onLogged(logged: Watch) {
                   </span>
                 </span>
                 <span
-                  v-if="w.reaction"
+                  v-if="group.key === 'dated'"
                   class="reaction"
-                  :title="reactions.byKey.get(w.reaction)?.label"
+                  :title="w.reaction ? reactions.byKey.get(w.reaction)?.label : undefined"
                 >
-                  {{ reactions.byKey.get(w.reaction)?.emoji }}
+                  {{ w.reaction ? reactions.byKey.get(w.reaction)?.emoji : '' }}
                 </span>
               </RouterLink>
             </li>
@@ -142,8 +143,7 @@ async function onLogged(logged: Watch) {
 
 <style scoped>
 .search {
-  width: 100%;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 ul {
@@ -152,65 +152,102 @@ ul {
   padding: 0;
 }
 
-.small {
-  font-size: 0.8rem;
-}
-
 .empty p {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .list-heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  margin: 0.5rem 0;
+  gap: 0.75rem;
+  margin: 0 0 0.9rem;
 }
 
 .list-heading h2 {
-  font-size: 1rem;
+  font-size: 1.15rem;
   margin: 0;
 }
 
+.count {
+  color: var(--red);
+}
+
 .group-heading {
-  font-size: 0.95rem;
-  margin: 1.5rem 0 0.25rem;
+  font-size: 0.9rem;
+  margin: 1.75rem 0 0.75rem;
+  color: var(--muted);
 }
 
-.watches li + li {
-  border-top: 1px solid var(--border);
+.watches {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
+/* Each watch is a ticket stub; the reaction sits in the torn-off end. */
 .watch {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0;
+  align-items: stretch;
+  min-height: 4.4rem;
+  border: 2px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--card);
   color: inherit;
   text-decoration: none;
+  overflow: hidden;
 }
 
-.thumb {
-  width: 2.75rem;
+.undated .watch {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--faint);
+}
+
+.watch .thumb {
+  width: 2.9rem;
   flex: none;
+  aspect-ratio: auto;
+  border-radius: 0;
+  border-right: 2px solid var(--line);
+}
+
+.undated .watch .thumb {
+  border-right-color: var(--faint);
 }
 
 .watch-main {
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
   min-width: 0;
   flex: 1;
+  padding: 0.5rem 0.75rem;
 }
 
 .watch-title {
-  font-weight: 500;
+  font-weight: 700;
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .heart {
-  color: var(--accent);
+  color: var(--red);
 }
 
 .reaction {
+  width: 3.4rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-left: 2px dashed var(--line);
   font-size: 1.5rem;
 }
 </style>

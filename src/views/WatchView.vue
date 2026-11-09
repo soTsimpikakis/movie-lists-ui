@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { api, del, patch, put } from '@/api/client'
 import type { Watch } from '@/api/types'
+import AppIcon from '@/components/AppIcon.vue'
 import DateField from '@/components/DateField.vue'
 import PosterImage from '@/components/PosterImage.vue'
 import ReactionPicker from '@/components/ReactionPicker.vue'
@@ -66,7 +67,9 @@ async function remove() {
 
 <template>
   <main class="page">
-    <RouterLink :to="{ name: 'home' }" class="back">← Watched</RouterLink>
+    <RouterLink :to="{ name: 'home' }" class="button-link plain small back">
+      <AppIcon name="back" :size="14" /> Watched
+    </RouterLink>
 
     <p v-if="notFound" class="muted">This watch doesn't exist (any more).</p>
     <template v-else-if="watch">
@@ -79,7 +82,7 @@ async function remove() {
         />
         <div class="film-info">
           <h1>{{ watch.film.title }}</h1>
-          <p class="muted">
+          <p class="meta">
             {{
               [watch.film.year, watch.film.runtime_min && `${watch.film.runtime_min} min`]
                 .filter(Boolean)
@@ -88,42 +91,45 @@ async function remove() {
           </p>
           <p class="muted">{{ watch.film.genres.join(', ') }}</p>
           <button
-            class="heart"
-            :class="{ on: watch.film.favourite }"
+            class="small"
+            :class="{ plain: !watch.film.favourite }"
             :aria-pressed="watch.film.favourite"
             @click="toggleFavourite"
           >
-            {{ watch.film.favourite ? '♥ Favourite' : '♡ Favourite' }}
+            <AppIcon name="heart" :size="14" :filled="watch.film.favourite" />
+            {{ watch.film.favourite ? 'Favourite' : 'Add to favourites' }}
           </button>
         </div>
       </div>
 
       <div class="stack">
         <div class="row">
-          <span class="muted">Watched</span>
+          <span class="label">Watched</span>
           <DateField
             v-if="watch.watched_on"
             :model-value="watch.watched_on"
             @update:model-value="(d: string) => save({ watched_on: d })"
           />
-          <span v-else>before Movie Club</span>
-          <span v-if="watch.watch_number > 1" class="muted">
-            · {{ ordinal(watch.watch_number) }} watch
+          <span v-else class="before">before Movie Club</span>
+          <span v-if="watch.watch_number > 1" class="nth">
+            {{ ordinal(watch.watch_number) }} watch
           </span>
         </div>
 
-        <div>
-          <h2>How was it?</h2>
-          <ReactionPicker
-            layout="grid"
-            :model-value="watch.reaction"
-            @update:model-value="(r) => save({ reaction: r })"
-          />
-        </div>
+        <ReactionPicker
+          :model-value="watch.reaction"
+          @update:model-value="(r) => save({ reaction: r })"
+        />
 
         <label>
-          Private note
-          <textarea v-model="note" rows="4" maxlength="5000" @blur="saveNote" />
+          <span class="label">Private note</span>
+          <textarea
+            v-model="note"
+            rows="4"
+            maxlength="5000"
+            placeholder="Only you can see this."
+            @blur="saveNote"
+          />
         </label>
 
         <p class="status" aria-live="polite">
@@ -131,7 +137,9 @@ async function remove() {
           <span v-else class="muted">{{ status }}</span>
         </p>
 
-        <button class="remove" @click="remove">Remove this watch</button>
+        <button class="danger small remove" @click="remove">
+          <AppIcon name="trash" :size="14" /> Remove this watch
+        </button>
       </div>
     </template>
 
@@ -141,9 +149,7 @@ async function remove() {
 
 <style scoped>
 .back {
-  display: inline-block;
-  margin-bottom: 1rem;
-  text-decoration: none;
+  margin-bottom: 1.25rem;
 }
 
 .film {
@@ -155,51 +161,64 @@ async function remove() {
 .poster {
   width: 7.5rem;
   flex: none;
+  border: 2px solid var(--line);
+  border-radius: 0.6rem;
+  box-shadow: 0 4px 0 var(--edge);
+}
+
+.film-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-width: 0;
 }
 
 h1 {
-  margin: 0 0 0.25rem;
-  font-size: 1.4rem;
-}
-
-h2 {
-  font-size: 1rem;
-  margin: 0 0 0.5rem;
+  margin: 0;
+  font-size: 1.5rem;
 }
 
 .film-info p {
-  margin: 0 0 0.25rem;
+  margin: 0;
 }
 
-.heart {
-  margin-top: 0.5rem;
-  background: transparent;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  padding: 0.4rem 0.8rem;
+.meta {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
-.heart.on {
-  background: var(--accent);
-  color: #fff;
+.film-info button {
+  margin-top: 0.4rem;
 }
 
 .row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px dashed var(--faint);
+}
+
+.before {
+  font-family: var(--mono);
+  color: var(--muted);
+}
+
+.nth {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--red);
 }
 
 textarea {
-  font: inherit;
-  font-size: max(1rem, 16px);
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: transparent;
-  color: inherit;
-  font-weight: 400;
   resize: vertical;
+}
+
+textarea::placeholder {
+  color: var(--faint);
 }
 
 .status {
@@ -209,8 +228,5 @@ textarea {
 
 .remove {
   align-self: flex-start;
-  background: transparent;
-  color: var(--error);
-  border: 1px solid var(--error);
 }
 </style>
