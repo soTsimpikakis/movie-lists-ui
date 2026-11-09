@@ -44,5 +44,16 @@ async function submit() {
       <p v-if="error" class="error">{{ error }}</p>
       <button type="submit" :disabled="busy">Log in</button>
     </form>
+    <p class="muted invite-note">
+      New here? Movie Club is invite-only. Ask a member for an invite link and open it to create
+      your account.
+    </p>
   </main>
 </template>
+
+<style scoped>
+.invite-note {
+  margin-top: 2rem;
+  font-size: 0.9rem;
+}
+</style>
