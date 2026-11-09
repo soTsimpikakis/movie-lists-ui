@@ -1,29 +1,33 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
 
 import { api } from '@/api/client'
 import type { SearchResult, Watch } from '@/api/types'
+import AppHeader from '@/components/AppHeader.vue'
+import FilmTile from '@/components/FilmTile.vue'
 import LogSheet from '@/components/LogSheet.vue'
 import PosterImage from '@/components/PosterImage.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
+import { useFilmSearch } from '@/composables/useFilmSearch'
 import { formatDate, ordinal } from '@/lib/format'
-import { useAuthStore } from '@/stores/auth'
 import { useReactionsStore } from '@/stores/reactions'
 
-const auth = useAuthStore()
 const reactions = useReactionsStore()
-const router = useRouter()
+const search = useFilmSearch()
+const { query, results } = search
 
 const watches = ref<Watch[] | null>(null)
-const query = ref('')
-const results = ref<SearchResult[]>([])
-const searching = ref(false)
-const searchError = ref('')
 const picked = ref<SearchResult | null>(null)
 const toast = ref('')
 
-const searchActive = computed(() => query.value.trim().length >= 2)
+// Undated watches come from "Movies I've seen" and get their own section (design.md §5.3).
+const groups = computed(() => {
+  const all = watches.value ?? []
+  return [
+    { key: 'dated', title: null, items: all.filter((w) => w.watched_on) },
+    { key: 'undated', title: 'Before Movie Club', items: all.filter((w) => !w.watched_on) },
+  ].filter((g) => g.items.length)
+})
 
 async function loadWatches() {
   watches.value = await api<Watch[]>('/watches')
@@ -34,34 +38,6 @@ onMounted(() => {
   reactions.load()
 })
 
-let debounce: ReturnType<typeof setTimeout> | undefined
-let inFlight: AbortController | undefined
-
-watch(query, (value) => {
-  clearTimeout(debounce)
-  inFlight?.abort()
-  const q = value.trim()
-  if (q.length < 2) {
-    results.value = []
-    searching.value = false
-    return
-  }
-  searching.value = true
-  debounce = setTimeout(async () => {
-    const controller = (inFlight = new AbortController())
-    try {
-      results.value = await api<SearchResult[]>(`/films/search?q=${encodeURIComponent(q)}`, {
-        signal: controller.signal,
-      })
-      searchError.value = ''
-    } catch (e) {
-      if (controller.signal.aborted) return
-      searchError.value = e instanceof Error ? e.message : String(e)
-    }
-    searching.value = false
-  }, 250)
-})
-
 async function onLogged(logged: Watch) {
   picked.value = null
   query.value = ''
@@ -69,19 +45,11 @@ async function onLogged(logged: Watch) {
   setTimeout(() => (toast.value = ''), 2500)
   await loadWatches()
 }
-
-async function logout() {
-  await auth.logout()
-  await router.push({ name: 'login' })
-}
 </script>
 
 <template>
   <main class="page">
-    <header class="topbar">
-      <h1>Movie Club</h1>
-      <button class="link" @click="logout">Log out</button>
-    </header>
+    <AppHeader />
 
     <input
       v-model="query"
@@ -93,64 +61,75 @@ async function logout() {
       aria-label="Search films to log"
     />
 
-    <section v-if="searchActive" aria-live="polite">
-      <p v-if="searchError" class="error">{{ searchError }}</p>
-      <p v-else-if="searching && !results.length" class="muted">Searching…</p>
+    <section v-if="search.active.value" aria-live="polite">
+      <p v-if="search.error.value" class="error">{{ search.error.value }}</p>
+      <p v-else-if="search.searching.value && !results.length" class="muted">Searching…</p>
       <p v-else-if="!results.length" class="muted">No films found.</p>
-      <ul class="results">
+      <ul class="film-grid">
         <li v-for="film in results" :key="film.tmdb_id">
-          <button class="result" @click="picked = film">
-            <PosterImage :path="film.poster_path" :title="film.title" />
-            <span class="result-title">{{ film.title }}</span>
-            <span class="muted small">
-              {{ film.year ?? '' }}
-              <template v-if="film.watch_count"> · seen ×{{ film.watch_count }}</template>
-            </span>
-          </button>
+          <FilmTile
+            :title="film.title"
+            :year="film.year"
+            :poster-path="film.poster_path"
+            :note="film.watch_count ? `seen ×${film.watch_count}` : undefined"
+            @click="picked = film"
+          />
         </li>
       </ul>
     </section>
 
     <section v-else>
       <p v-if="watches === null" class="muted">Loading…</p>
-      <p v-else-if="!watches.length" class="muted">
-        Nothing logged yet. Search for the last film you watched.
-      </p>
+      <div v-else-if="!watches.length" class="empty">
+        <p class="muted">Nothing logged yet. Search for the last film you watched, or</p>
+        <RouterLink :to="{ name: 'seen' }" class="button-link">
+          tick off films you've already seen
+        </RouterLink>
+      </div>
       <template v-else>
-        <h2 class="list-heading">
-          Watched <span class="muted">· {{ watches.length }}</span>
-        </h2>
-        <ul class="watches">
-          <li v-for="w in watches" :key="w.id">
-            <RouterLink class="watch" :to="{ name: 'watch', params: { id: w.id } }">
-              <PosterImage
-                class="thumb"
-                :path="w.film.poster_path"
-                :title="w.film.title"
-                size="w92"
-              />
-              <span class="watch-main">
-                <span class="watch-title">
-                  {{ w.film.title }}
-                  <span v-if="w.film.favourite" class="heart" aria-label="Favourite">♥</span>
+        <div class="list-heading">
+          <h2>
+            Watched <span class="muted">· {{ watches.length }}</span>
+          </h2>
+          <RouterLink :to="{ name: 'seen' }">Update my library</RouterLink>
+        </div>
+
+        <template v-for="group in groups" :key="group.key">
+          <h3 v-if="group.title" class="group-heading">
+            {{ group.title }} <span class="muted">· {{ group.items.length }}</span>
+          </h3>
+          <ul class="watches">
+            <li v-for="w in group.items" :key="w.id">
+              <RouterLink class="watch" :to="{ name: 'watch', params: { id: w.id } }">
+                <PosterImage
+                  class="thumb"
+                  :path="w.film.poster_path"
+                  :title="w.film.title"
+                  size="w92"
+                />
+                <span class="watch-main">
+                  <span class="watch-title">
+                    {{ w.film.title }}
+                    <span v-if="w.film.favourite" class="heart" aria-label="Favourite">♥</span>
+                  </span>
+                  <span class="muted small">
+                    {{ w.watched_on ? formatDate(w.watched_on) : (w.film.year ?? '') }}
+                    <template v-if="w.watch_number > 1">
+                      · {{ ordinal(w.watch_number) }} watch
+                    </template>
+                  </span>
                 </span>
-                <span class="muted small">
-                  {{ w.watched_on ? formatDate(w.watched_on) : 'Before Movie Club' }}
-                  <template v-if="w.watch_number > 1">
-                    · {{ ordinal(w.watch_number) }} watch</template
-                  >
+                <span
+                  v-if="w.reaction"
+                  class="reaction"
+                  :title="reactions.byKey.get(w.reaction)?.label"
+                >
+                  {{ reactions.byKey.get(w.reaction)?.emoji }}
                 </span>
-              </span>
-              <span
-                v-if="w.reaction"
-                class="reaction"
-                :title="reactions.byKey.get(w.reaction)?.label"
-              >
-                {{ reactions.byKey.get(w.reaction)?.emoji }}
-              </span>
-            </RouterLink>
-          </li>
-        </ul>
+              </RouterLink>
+            </li>
+          </ul>
+        </template>
       </template>
     </section>
 
@@ -173,36 +152,29 @@ ul {
   padding: 0;
 }
 
-.results {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
-  gap: 1rem 0.75rem;
-}
-
-.result {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  width: 100%;
-  padding: 0;
-  background: none;
-  color: var(--fg);
-  text-align: left;
-  font-weight: 400;
-}
-
-.result-title {
-  font-size: 0.85rem;
-  line-height: 1.25;
-}
-
 .small {
   font-size: 0.8rem;
 }
 
+.empty p {
+  margin-bottom: 0.5rem;
+}
+
 .list-heading {
-  font-size: 1rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   margin: 0.5rem 0;
+}
+
+.list-heading h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.group-heading {
+  font-size: 0.95rem;
+  margin: 1.5rem 0 0.25rem;
 }
 
 .watches li + li {
@@ -240,18 +212,5 @@ ul {
 
 .reaction {
   font-size: 1.5rem;
-}
-
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(1.5rem + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  margin: 0;
-  padding: 0.6rem 1rem;
-  border-radius: 999px;
-  background: var(--fg);
-  color: var(--bg);
-  font-weight: 500;
 }
 </style>

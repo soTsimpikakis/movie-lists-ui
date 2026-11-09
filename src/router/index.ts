@@ -15,6 +15,9 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/watches/:id', name: 'watch', component: () => import('@/views/WatchView.vue') },
+    { path: '/sets', name: 'sets', component: () => import('@/views/SetsView.vue') },
+    { path: '/sets/:id', name: 'set', component: () => import('@/views/SetView.vue') },
+    { path: '/seen', name: 'seen', component: () => import('@/views/SeenView.vue') },
     {
       path: '/login',
       name: 'login',

@@ -30,7 +30,8 @@ async function submit() {
   busy.value = true
   try {
     await auth.acceptInvite(token, displayName.value, password.value)
-    await router.replace({ name: 'home' })
+    // Straight into "Movies I've seen", so the first real screen already has progress (§5.3).
+    await router.replace({ name: 'seen', query: { welcome: '1' } })
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {

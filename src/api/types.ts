@@ -28,6 +28,42 @@ export interface Watch {
   film: Film
 }
 
+export interface SetSummary {
+  id: number
+  key: string
+  title: string
+  kind: 'franchise' | 'director'
+  theme_key: string | null
+  total: number
+  watched: number
+}
+
+export interface SetFilm {
+  film_id: number
+  tmdb_id: number
+  title: string
+  year: number | null
+  poster_path: string | null
+  watched: boolean
+}
+
+export interface SetDetail extends SetSummary {
+  films: SetFilm[]
+}
+
+export interface ChecklistFilm {
+  tmdb_id: number
+  title: string
+  year: number | null
+  poster_path: string | null
+  seen: boolean
+}
+
+export interface Checklist {
+  sets: { id: number; title: string; films: ChecklistFilm[] }[]
+  popular: ChecklistFilm[]
+}
+
 export interface Reaction {
   key: string
   emoji: string
