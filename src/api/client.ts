@@ -31,9 +31,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return response.status === 204 ? (undefined as T) : response.json()
 }
 
-export function post<T>(path: string, body?: unknown): Promise<T> {
-  return api<T>(path, {
-    method: 'POST',
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
+function send<T>(method: string, path: string, body?: unknown): Promise<T> {
+  return api<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) })
 }
+
+export const post = <T>(path: string, body?: unknown) => send<T>('POST', path, body)
+export const patch = <T>(path: string, body: unknown) => send<T>('PATCH', path, body)
+export const put = <T>(path: string, body?: unknown) => send<T>('PUT', path, body)
+export const del = <T>(path: string) => send<T>('DELETE', path)

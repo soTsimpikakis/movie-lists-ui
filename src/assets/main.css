@@ -91,6 +91,7 @@ button {
   background: var(--accent);
   color: #fff;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:disabled {
