@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-import { api } from '@/api/client'
+import { useAuthStore } from '@/stores/auth'
 
-const status = ref('checking…')
+const auth = useAuthStore()
+const router = useRouter()
 
-onMounted(async () => {
-  try {
-    status.value = (await api<{ status: string }>('/health')).status
-  } catch {
-    status.value = 'unreachable'
-  }
-})
+async function logout() {
+  await auth.logout()
+  await router.push({ name: 'login' })
+}
 </script>
 
 <template>
-  <h1>Movie Club</h1>
-  <p>API: {{ status }}</p>
+  <main class="page">
+    <header class="topbar">
+      <h1>Movie Club</h1>
+      <button class="link" @click="logout">Log out</button>
+    </header>
+    <p>Hi {{ auth.user?.display_name }}. Nothing logged yet.</p>
+  </main>
 </template>
