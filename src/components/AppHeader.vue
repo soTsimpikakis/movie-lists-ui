@@ -24,6 +24,7 @@ async function logout() {
     <span class="tagline">Now showing · your life in films</span>
     <nav class="tabs">
       <RouterLink :to="{ name: 'home' }">Watched</RouterLink>
+      <RouterLink :to="{ name: 'library' }">Library</RouterLink>
       <RouterLink :to="{ name: 'sets' }" :class="{ 'router-link-active': $route.name === 'set' }">
         Sets
       </RouterLink>

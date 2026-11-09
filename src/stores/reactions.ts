@@ -12,7 +12,9 @@ export const useReactionsStore = defineStore('reactions', () => {
 
   function load() {
     loading ??= api<Reaction[]>('/reactions').then((reactions) => {
-      all.value = reactions
+      // Drop the "draw as colour emoji" selector (U+FE0F) so every reaction can use the
+      // monochrome emoji font, e.g. 🕰️.
+      all.value = reactions.map((r) => ({ ...r, emoji: r.emoji.replace(/️/g, '') }))
     })
     return loading
   }

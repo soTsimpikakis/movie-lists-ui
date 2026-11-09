@@ -15,6 +15,8 @@
   --error: #b3122b;
   --display: 'Bungee', system-ui, sans-serif;
   --mono: 'DM Mono', ui-monospace, monospace;
+  /* Monochrome line emoji: reactions take the text colour, like a rubber stamp. */
+  --emoji: 'Noto Emoji', 'Segoe UI Emoji', sans-serif;
   font-family: 'DM Sans', system-ui, sans-serif;
   line-height: 1.5;
   color-scheme: light;
@@ -176,6 +178,12 @@ button:focus-visible,
 .small {
   font-size: 0.85rem;
   padding: 0.45rem 0.75rem;
+}
+
+.emoji {
+  font-family: var(--emoji);
+  font-weight: 500;
+  line-height: 1;
 }
 
 .muted {

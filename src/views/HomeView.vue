@@ -12,6 +12,7 @@ import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 import { useFilmSearch } from '@/composables/useFilmSearch'
 import { formatDate, ordinal } from '@/lib/format'
+import { genreColours } from '@/lib/genres'
 import { useReactionsStore } from '@/stores/reactions'
 
 const reactions = useReactionsStore()
@@ -23,12 +24,13 @@ const picked = ref<SearchResult | null>(null)
 const toast = ref('')
 
 // Undated watches come from "Movies I've seen" and get their own section (design.md §5.3).
+// The undated section always shows, since its heading holds "Update my library".
 const groups = computed(() => {
   const all = watches.value ?? []
   return [
-    { key: 'dated', title: null, items: all.filter((w) => w.watched_on) },
-    { key: 'undated', title: 'Before Movie Club', items: all.filter((w) => !w.watched_on) },
-  ].filter((g) => g.items.length)
+    { key: 'dated', items: all.filter((w) => w.watched_on) },
+    { key: 'undated', items: all.filter((w) => !w.watched_on) },
+  ]
 })
 
 async function loadWatches() {
@@ -70,6 +72,7 @@ async function onLogged(logged: Watch) {
             :title="film.title"
             :year="film.year"
             :poster-path="film.poster_path"
+            :genre="film.genre"
             :note="film.watch_count ? `seen ×${film.watch_count}` : undefined"
             @click="picked = film"
           />
@@ -86,19 +89,25 @@ async function onLogged(logged: Watch) {
         </RouterLink>
       </div>
       <template v-else>
-        <div class="list-heading">
-          <h2>
-            Watched <span class="count">· {{ watches.length }}</span>
-          </h2>
-          <RouterLink :to="{ name: 'seen' }" class="button-link mustard small">
-            <AppIcon name="plus" :size="14" /> Update my library
-          </RouterLink>
-        </div>
+        <h2 class="list-heading">
+          Watched <span class="count">· {{ watches.length }}</span>
+        </h2>
 
         <template v-for="group in groups" :key="group.key">
-          <h3 v-if="group.title" class="group-heading">
-            {{ group.title }} · {{ group.items.length }}
-          </h3>
+          <div v-if="group.key === 'undated'" class="group-heading">
+            <h3>Before Movie Club · {{ group.items.length }}</h3>
+            <RouterLink
+              :to="{ name: 'seen' }"
+              class="button-link mustard small"
+              aria-label="Update my library"
+              title="Update my library"
+            >
+              <AppIcon name="plus" :size="13" /><AppIcon name="library" :size="17" />
+            </RouterLink>
+          </div>
+          <p v-if="group.key === 'undated' && !group.items.length" class="muted hint">
+            Films you saw before joining. Tick them off to fill your sets.
+          </p>
           <ul class="watches" :class="group.key">
             <li v-for="w in group.items" :key="w.id">
               <RouterLink class="watch" :to="{ name: 'watch', params: { id: w.id } }">
@@ -121,8 +130,8 @@ async function onLogged(logged: Watch) {
                   </span>
                 </span>
                 <span
-                  v-if="group.key === 'dated'"
-                  class="reaction"
+                  class="stub emoji"
+                  :style="genreColours(w.film.genres[0])"
                   :title="w.reaction ? reactions.byKey.get(w.reaction)?.label : undefined"
                 >
                   {{ w.reaction ? reactions.byKey.get(w.reaction)?.emoji : '' }}
@@ -157,16 +166,8 @@ ul {
 }
 
 .list-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin: 0 0 0.9rem;
-}
-
-.list-heading h2 {
   font-size: 1.15rem;
-  margin: 0;
+  margin: 0 0 0.9rem;
 }
 
 .count {
@@ -174,9 +175,26 @@ ul {
 }
 
 .group-heading {
-  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   margin: 1.75rem 0 0.75rem;
+}
+
+.group-heading h3 {
+  margin: 0;
+  font-size: 0.9rem;
   color: var(--muted);
+}
+
+.group-heading .button-link {
+  gap: 0.15rem;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 .watches {
@@ -185,8 +203,9 @@ ul {
   gap: 0.6rem;
 }
 
-/* Each watch is a ticket stub; the reaction sits in the torn-off end. */
+/* Each watch is a ticket stub; the reaction is stamped on the genre-coloured end. */
 .watch {
+  position: relative;
   display: flex;
   align-items: stretch;
   min-height: 4.4rem;
@@ -242,12 +261,36 @@ ul {
   color: var(--red);
 }
 
-.reaction {
-  width: 3.4rem;
+.stub {
+  width: 3.6rem;
   flex: none;
   display: grid;
   place-items: center;
+  padding-right: 0.55rem;
   border-left: 2px dashed var(--line);
-  font-size: 1.5rem;
+  font-size: 1.45rem;
+}
+
+/* The punched notch on the right edge. */
+.watch::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -0.7rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  transform: translateY(-50%);
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg);
+}
+
+.undated .watch::after {
+  border-style: dashed;
+  border-color: var(--faint);
+}
+
+.undated .stub {
+  border-left-color: var(--faint);
 }
 </style>

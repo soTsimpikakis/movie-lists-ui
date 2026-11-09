@@ -3,6 +3,8 @@ export interface SearchResult {
   title: string
   year: number | null
   poster_path: string | null
+  /** Main genre (TMDB's first); colours the ticket. */
+  genre: string | null
   watch_count: number
 }
 
@@ -44,6 +46,8 @@ export interface SetFilm {
   title: string
   year: number | null
   poster_path: string | null
+  /** Main genre (TMDB's first); colours the ticket. */
+  genre: string | null
   watched: boolean
 }
 
@@ -56,6 +60,8 @@ export interface ChecklistFilm {
   title: string
   year: number | null
   poster_path: string | null
+  /** Main genre (TMDB's first); colours the ticket. */
+  genre: string | null
   seen: boolean
 }
 
