@@ -121,3 +121,24 @@ export interface SeenResult {
   added: number
   events: RewardEvent[]
 }
+
+/** A person to filter by (e.g. a director), from TMDB. */
+export interface Person {
+  id: number
+  name: string
+  department: string | null
+  known_for: string[]
+}
+
+export interface Genre {
+  id: number
+  name: string
+}
+
+/** A page of films matching director / year / genre filters. */
+export interface BrowsePage {
+  results: SearchResult[]
+  page: number
+  total_pages: number
+  total: number
+}

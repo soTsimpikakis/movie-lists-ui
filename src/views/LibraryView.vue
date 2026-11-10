@@ -55,7 +55,7 @@ onMounted(() => load())
 </script>
 
 <template>
-  <main class="page">
+  <main class="page wide">
     <AppHeader />
 
     <div class="heading">

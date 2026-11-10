@@ -14,7 +14,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="page">
+  <main class="page wide">
     <AppHeader />
 
     <p v-if="sets === null" class="muted">Loading…</p>
@@ -218,5 +218,13 @@ onMounted(async () => {
     linear-gradient(rgb(60 40 20 / var(--shade)), rgb(60 40 20 / var(--shade))),
     linear-gradient(to left, var(--stub-colour) var(--stub), transparent var(--stub)),
     var(--parchment-paper);
+}
+
+@media (min-width: 900px) {
+  .sets {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.6rem 1.75rem;
+  }
 }
 </style>

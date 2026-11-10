@@ -96,6 +96,24 @@ h3 {
   max-width: 24rem;
 }
 
+/* Desktop: list screens (.wide) use more of the screen, in two columns where it helps. */
+@media (min-width: 900px) {
+  .page.wide {
+    max-width: 66rem;
+    padding-inline: 2rem;
+  }
+
+  .page.wide .action-bar {
+    margin-inline: -2rem;
+    padding-inline: 2rem;
+  }
+
+  .page.wide .film-grid {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: 1.25rem 1rem;
+  }
+}
+
 .stack {
   display: flex;
   flex-direction: column;
@@ -120,6 +138,7 @@ label {
 }
 
 input,
+select,
 textarea {
   font: inherit;
   /* 16px+ stops iOS zooming in on focus. */
@@ -133,6 +152,7 @@ textarea {
 }
 
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible {
   outline: 3px solid var(--mustard);
   outline-offset: 1px;

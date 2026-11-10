@@ -82,7 +82,7 @@ async function onLogged() {
 </script>
 
 <template>
-  <main class="page">
+  <main class="page wide">
     <AppHeader />
 
     <p v-if="notFound" class="muted">This set doesn't exist.</p>

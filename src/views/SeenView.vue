@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { api, post } from '@/api/client'
-import type { Checklist, SeenResult } from '@/api/types'
+import type { BrowsePage, Checklist, SearchResult, SeenResult } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
+import FilmFilters, { type Filters } from '@/components/FilmFilters.vue'
 import PosterTile from '@/components/PosterTile.vue'
 import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
@@ -29,6 +30,59 @@ onMounted(async () => {
   checklist.value = await api<Checklist>('/checklist')
 })
 
+// Director / year / genre filters, for ticking off whole filmographies or years at once.
+const filters = ref<Filters>({ director: null, year: null, genre: null })
+const filtering = computed(() =>
+  Boolean(filters.value.director || filters.value.year || filters.value.genre),
+)
+const browsed = ref<SearchResult[]>([])
+const browsePage = ref<BrowsePage | null>(null)
+const browsing = ref(false)
+let browseRequest = 0
+
+async function browse(page = 1) {
+  const { director, year, genre } = filters.value
+  const params = new URLSearchParams({ page: String(page) })
+  if (director) params.set('director', String(director.id))
+  if (year) params.set('year', String(year))
+  if (genre) params.set('genre', String(genre))
+  const mine = ++browseRequest
+  browsing.value = true
+  try {
+    const result = await api<BrowsePage>(`/films/browse?${params}`)
+    if (mine !== browseRequest) return
+    browsed.value = page === 1 ? result.results : [...browsed.value, ...result.results]
+    browsePage.value = result
+  } finally {
+    if (mine === browseRequest) browsing.value = false
+  }
+}
+
+watch(
+  filters,
+  () => {
+    browsed.value = []
+    browsePage.value = null
+    if (filtering.value) browse()
+  },
+  { deep: true },
+)
+
+const tickable = computed(() => browsed.value.filter((f) => f.watch_count === 0))
+const allTicked = computed(
+  () => tickable.value.length > 0 && tickable.value.every((f) => ticked.value.has(f.tmdb_id)),
+)
+
+/** Tick every unseen film in the results so far, or untick them all if they already are. */
+function tickAll() {
+  const next = new Set(ticked.value)
+  for (const f of tickable.value) {
+    if (allTicked.value) next.delete(f.tmdb_id)
+    else next.add(f.tmdb_id)
+  }
+  ticked.value = next
+}
+
 function toggle(tmdbId: number) {
   const next = new Set(ticked.value)
   if (!next.delete(tmdbId)) next.add(tmdbId)
@@ -51,7 +105,7 @@ async function save() {
 </script>
 
 <template>
-  <main class="page">
+  <main class="page wide">
     <template v-if="welcome">
       <h1>What have you already seen?</h1>
       <p>
@@ -76,6 +130,8 @@ async function save() {
       label="Search for a film you've seen"
     />
 
+    <FilmFilters v-model="filters" />
+
     <section v-if="search.active.value" aria-live="polite">
       <p v-if="search.error.value" class="error">{{ search.error.value }}</p>
       <p v-else-if="search.searching.value && !results.length" class="muted">Searching…</p>
@@ -94,8 +150,47 @@ async function save() {
       </ul>
     </section>
 
+    <section v-else-if="filtering" aria-live="polite">
+      <div class="results-heading">
+        <h2>
+          Matching films <span class="count" v-if="browsePage">· {{ browsePage.total }}</span>
+        </h2>
+        <button
+          v-if="tickable.length"
+          class="mustard small"
+          :aria-pressed="allTicked"
+          @click="tickAll"
+        >
+          <AppIcon :name="allTicked ? 'close' : 'check'" :size="14" />
+          {{ allTicked ? 'Untick all' : `Tick all ${tickable.length}` }}
+        </button>
+      </div>
+      <p v-if="browsing && !browsed.length" class="muted">Looking…</p>
+      <p v-else-if="browsePage && !browsed.length" class="muted">No films match these filters.</p>
+      <ul class="film-grid">
+        <li v-for="film in browsed" :key="film.tmdb_id">
+          <PosterTile
+            :title="film.title"
+            :year="film.year"
+            :poster-path="film.poster_path"
+            :checked="film.watch_count > 0 || ticked.has(film.tmdb_id)"
+            :disabled="film.watch_count > 0"
+            @click="toggle(film.tmdb_id)"
+          />
+        </li>
+      </ul>
+      <button
+        v-if="browsePage && browsePage.page < browsePage.total_pages"
+        class="plain load-more"
+        :disabled="browsing"
+        @click="browse(browsePage.page + 1)"
+      >
+        <AppIcon name="chevron-down" /> {{ browsing ? 'Loading…' : 'Load more' }}
+      </button>
+    </section>
+
     <p v-if="checklist === null" class="muted">Loading…</p>
-    <template v-else-if="!search.active.value">
+    <template v-else-if="!search.active.value && !filtering">
       <section v-for="s in checklist.sets" :key="s.id">
         <h2>{{ s.title }}</h2>
         <ul class="film-grid">
@@ -161,6 +256,27 @@ h2 {
 
 .search {
   margin-top: 0.75rem;
+}
+
+.results-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.results-heading h2 {
+  margin: 0;
+}
+
+.count {
+  color: var(--red);
+}
+
+.load-more {
+  width: 100%;
+  margin-top: 1.25rem;
 }
 
 .action-bar .error {

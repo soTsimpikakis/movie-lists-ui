@@ -70,7 +70,7 @@ async function onLogged(logged: Watch) {
 </script>
 
 <template>
-  <main class="page">
+  <main class="page wide">
     <AppHeader />
 
     <SearchField
@@ -217,6 +217,14 @@ ul {
 
 .watches li:nth-child(3n) {
   transform: rotate(-0.15deg) translateX(-1px);
+}
+
+@media (min-width: 900px) {
+  .watches {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.1rem 1.5rem;
+  }
 }
 
 .load-more {

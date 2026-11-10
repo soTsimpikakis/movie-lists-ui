@@ -6,8 +6,8 @@ import AppIcon from '@/components/AppIcon.vue'
 import PosterImage from '@/components/PosterImage.vue'
 import { useReactionsStore } from '@/stores/reactions'
 
-// A watch as a cinema ticket: poster, title, the date in "row / seat" cells, a stamped heart
-// for favourites, and a red stub with the ticket's serial and the reaction stamped on it.
+// A watch as a cinema ticket: poster, title, the date in "row / seat" cells, the reaction
+// typed underneath, a stamped heart for favourites, and a red stub with the ticket's serial.
 const props = defineProps<{ watch: Watch }>()
 const reactions = useReactionsStore()
 const reaction = computed(() =>
@@ -46,6 +46,10 @@ const serial = computed(() => `#${String(props.watch.serial).padStart(3, '0')}`)
           <span class="seat-value">{{ s.value }}</span>
         </span>
       </span>
+      <span v-if="reaction" class="reaction">
+        <span class="emoji">{{ reaction.emoji }}</span>
+        {{ reaction.label }}
+      </span>
       <span v-if="watch.film.favourite" class="stamp" role="img" aria-label="Favourite">
         <AppIcon name="heart" :size="18" filled />
         <span>fav</span>
@@ -53,20 +57,19 @@ const serial = computed(() => `#${String(props.watch.serial).padStart(3, '0')}`)
     </span>
     <span class="stub">
       <span class="serial" :aria-label="`Ticket ${serial}`">{{ serial }}</span>
-      <span class="emoji reaction" :title="reaction?.label">{{ reaction?.emoji ?? '' }}</span>
     </span>
   </RouterLink>
 </template>
 
 <style scoped>
-/* Ticket proportions: about 3:8, capped so desktop tickets don't get huge. The notch on the
-   stub is a real cut-out, so the shadow and whatever lies below show through. */
+/* Ticket proportions: about 3:8 on a phone. The height is capped directly (not through an
+   aspect ratio, which would shrink the width too), so a ticket always fills its column. The
+   notch on the stub is a real cut-out, so the shadow and whatever lies below show through. */
 .watch {
   position: relative;
   display: flex;
   align-items: stretch;
-  aspect-ratio: 8 / 3;
-  max-height: 9rem;
+  height: clamp(7.5rem, 37.5vw, 9rem);
   border: 2px solid var(--ticket-line);
   border-radius: 0.6rem;
   background: var(--parchment-paper);
@@ -92,7 +95,7 @@ const serial = computed(() => `#${String(props.watch.serial).padStart(3, '0')}`)
   gap: 0.5rem;
   min-width: 0;
   flex: 1;
-  padding: 0.55rem 0.75rem;
+  padding: 0.6rem 0.9rem;
 }
 
 .title {
@@ -100,6 +103,11 @@ const serial = computed(() => `#${String(props.watch.serial).padStart(3, '0')}`)
   font-size: 1.1rem;
   font-weight: 700;
   line-height: 1.2;
+  /* Long titles stop at two lines rather than pushing the date off the ticket. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 /* Room for the stamp in the corner. */
@@ -115,7 +123,8 @@ const serial = computed(() => `#${String(props.watch.serial).padStart(3, '0')}`)
 .seat {
   display: flex;
   flex-direction: column;
-  padding: 0 0.6rem;
+  gap: 0.15rem;
+  padding: 0 0.75rem;
   font-family: var(--ticket-type);
   line-height: 1.1;
 }
@@ -166,13 +175,33 @@ const serial = computed(() => `#${String(props.watch.serial).padStart(3, '0')}`)
   mix-blend-mode: multiply;
 }
 
+/* The reaction, typed under the date in the same face as the seats. */
+.reaction {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--ticket-type);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--parchment-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reaction .emoji {
+  font-size: 1.05rem;
+  color: var(--parchment-ink);
+}
+
 .stub {
-  width: 4.6rem;
+  width: 3.4rem;
   flex: none;
   display: flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0 0.85rem 0 0.25rem;
+  justify-content: center;
+  padding-right: 0.9rem;
   border-left: 2px dashed var(--ticket-line);
   background: var(--red);
   color: var(--on-red);
@@ -186,14 +215,35 @@ const serial = computed(() => `#${String(props.watch.serial).padStart(3, '0')}`)
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   font-family: var(--ticket-type);
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  opacity: 0.9;
+  font-size: 0.95rem;
+  letter-spacing: 0.16em;
 }
 
-.reaction {
-  flex: 1;
-  text-align: center;
-  font-size: 1.6rem;
+/* Wider tickets (tablet, desktop columns) have room to breathe. */
+@media (min-width: 600px) {
+  .watch {
+    height: 10.75rem;
+  }
+
+  .main {
+    gap: 0.7rem;
+    padding: 0.8rem 1.4rem;
+  }
+
+  .title {
+    font-size: 1.2rem;
+  }
+
+  .seat {
+    padding: 0 1.1rem;
+  }
+
+  .seat-value {
+    font-size: 1.15rem;
+  }
+
+  .reaction {
+    font-size: 0.85rem;
+  }
 }
 </style>
