@@ -112,7 +112,7 @@ async function onLogged() {
             :title="film.title"
             :year="film.year"
             :poster-path="film.poster_path"
-            :genre="film.genre"
+            :watch-count="film.watch_count"
             :muted="!film.watched && !ticked.has(film.tmdb_id)"
             :checked="ticked.has(film.tmdb_id)"
             :disabled="film.watched"

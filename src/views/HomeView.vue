@@ -5,14 +5,13 @@ import { api } from '@/api/client'
 import type { SearchResult, Watch } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
-import FilmTile from '@/components/FilmTile.vue'
+import PosterTile from '@/components/PosterTile.vue'
 import LogSheet from '@/components/LogSheet.vue'
 import PosterImage from '@/components/PosterImage.vue'
 import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 import { useFilmSearch } from '@/composables/useFilmSearch'
 import { formatDate, ordinal } from '@/lib/format'
-import { genreColours } from '@/lib/genres'
 import { useReactionsStore } from '@/stores/reactions'
 
 const reactions = useReactionsStore()
@@ -68,11 +67,10 @@ async function onLogged(logged: Watch) {
       <p v-else-if="!results.length" class="muted">No films found.</p>
       <ul class="film-grid">
         <li v-for="film in results" :key="film.tmdb_id">
-          <FilmTile
+          <PosterTile
             :title="film.title"
             :year="film.year"
             :poster-path="film.poster_path"
-            :genre="film.genre"
             :note="film.watch_count ? `seen ×${film.watch_count}` : undefined"
             @click="picked = film"
           />
@@ -131,7 +129,6 @@ async function onLogged(logged: Watch) {
                 </span>
                 <span
                   class="stub emoji"
-                  :style="genreColours(w.film.genres[0])"
                   :title="w.reaction ? reactions.byKey.get(w.reaction)?.label : undefined"
                 >
                   {{ w.reaction ? reactions.byKey.get(w.reaction)?.emoji : '' }}
@@ -203,7 +200,7 @@ ul {
   gap: 0.6rem;
 }
 
-/* Each watch is a ticket stub; the reaction is stamped on the genre-coloured end. */
+/* Each watch is a ticket stub; the reaction is stamped on the red end. */
 .watch {
   position: relative;
   display: flex;
@@ -214,7 +211,6 @@ ul {
   background: var(--card);
   color: inherit;
   text-decoration: none;
-  overflow: hidden;
 }
 
 .undated .watch {
@@ -227,7 +223,7 @@ ul {
   width: 2.9rem;
   flex: none;
   aspect-ratio: auto;
-  border-radius: 0;
+  border-radius: calc(0.6rem - 2px) 0 0 calc(0.6rem - 2px);
   border-right: 2px solid var(--line);
 }
 
@@ -268,26 +264,26 @@ ul {
   place-items: center;
   padding-right: 0.55rem;
   border-left: 2px dashed var(--line);
+  background: var(--red);
+  color: var(--on-red);
+  /* Covers the ticket's outline, so the colour runs right to the edge. */
+  margin: -2px -2px -2px 0;
+  border-radius: 0 0.6rem 0.6rem 0;
   font-size: 1.45rem;
 }
 
-/* The punched notch on the right edge. */
+/* The punched notch: a page-coloured circle over the stub's outer edge. Its outer half
+   lies on the page, so no sliver of stub colour survives sub-pixel rounding. */
 .watch::after {
   content: '';
   position: absolute;
   top: 50%;
-  right: -0.7rem;
-  width: 1.4rem;
-  height: 1.4rem;
+  right: calc(-2px - 0.8rem);
+  width: 1.5rem;
+  height: 1.5rem;
   transform: translateY(-50%);
-  border: 2px solid var(--line);
   border-radius: 50%;
   background: var(--bg);
-}
-
-.undated .watch::after {
-  border-style: dashed;
-  border-color: var(--faint);
 }
 
 .undated .stub {

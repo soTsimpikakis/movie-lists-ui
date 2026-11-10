@@ -79,8 +79,7 @@ onMounted(async () => {
           :title="f.film.title"
           :year="f.film.year"
           :poster-path="f.film.poster_path"
-          :genre="f.film.genres[0]"
-          :note="f.count > 1 ? `×${f.count}` : undefined"
+          :watch-count="f.count"
           @click="router.push({ name: 'watch', params: { id: f.latest.id } })"
         />
       </li>

@@ -49,6 +49,7 @@ export interface SetFilm {
   /** Main genre (TMDB's first); colours the ticket. */
   genre: string | null
   watched: boolean
+  watch_count: number
 }
 
 export interface SetDetail extends SetSummary {
@@ -63,6 +64,7 @@ export interface ChecklistFilm {
   /** Main genre (TMDB's first); colours the ticket. */
   genre: string | null
   seen: boolean
+  watch_count: number
 }
 
 export interface Checklist {

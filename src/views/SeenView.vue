@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { api, post } from '@/api/client'
 import type { Checklist } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
-import FilmTile from '@/components/FilmTile.vue'
+import PosterTile from '@/components/PosterTile.vue'
 import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 import { useFilmSearch } from '@/composables/useFilmSearch'
@@ -79,11 +79,10 @@ async function save() {
       <p v-else-if="!results.length" class="muted">No films found.</p>
       <ul class="film-grid">
         <li v-for="film in results" :key="film.tmdb_id">
-          <FilmTile
+          <PosterTile
             :title="film.title"
             :year="film.year"
             :poster-path="film.poster_path"
-            :genre="film.genre"
             :checked="film.watch_count > 0 || ticked.has(film.tmdb_id)"
             :disabled="film.watch_count > 0"
             @click="toggle(film.tmdb_id)"
@@ -98,11 +97,10 @@ async function save() {
         <h2>{{ s.title }}</h2>
         <ul class="film-grid">
           <li v-for="film in s.films" :key="film.tmdb_id">
-            <FilmTile
+            <PosterTile
               :title="film.title"
               :year="film.year"
               :poster-path="film.poster_path"
-              :genre="film.genre"
               :checked="film.seen || ticked.has(film.tmdb_id)"
               :disabled="film.seen"
               @click="toggle(film.tmdb_id)"
@@ -115,11 +113,10 @@ async function save() {
         <h2>Popular films</h2>
         <ul class="film-grid">
           <li v-for="film in checklist.popular" :key="film.tmdb_id">
-            <FilmTile
+            <PosterTile
               :title="film.title"
               :year="film.year"
               :poster-path="film.poster_path"
-              :genre="film.genre"
               :checked="film.seen || ticked.has(film.tmdb_id)"
               :disabled="film.seen"
               @click="toggle(film.tmdb_id)"
