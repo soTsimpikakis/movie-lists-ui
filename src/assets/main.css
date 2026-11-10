@@ -17,6 +17,24 @@
   --mono: 'DM Mono', ui-monospace, monospace;
   /* Monochrome line emoji: reactions take the text colour, like a rubber stamp. */
   --emoji: 'Noto Emoji', 'Segoe UI Emoji', sans-serif;
+  /* Printed-ticket faces: a sturdy vintage slab for film titles, a typewriter stamp for details. */
+  --ticket-title: 'Arvo', Rockwell, Georgia, serif;
+  --ticket-type: 'Special Elite', 'Courier New', monospace;
+  /* Aged ticket paper. It stays paper-coloured in dark mode, just a little dimmer. */
+  --parchment: #f1e4c4;
+  --parchment-ink: #2a1a12;
+  --parchment-muted: #6b5444;
+  /* A pre-made speckle tile: cheap to draw, unlike an SVG noise filter. */
+  --paper-grain: url('data:image/png;base64,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');
+  /* The full ticket paper: grain, edges darkened with age, parchment. */
+  --parchment-paper:
+    var(--paper-grain), radial-gradient(ellipse at 40% 50%, transparent 55%, rgb(120 80 30 / 0.16)),
+    var(--parchment);
+  /* Ticket outlines are softer than other lines, and tickets cast a shadow, like paper
+     lying on a table. */
+  --ticket-line: #8c7560;
+  --ticket-shadow: drop-shadow(0 1px 1px rgb(42 26 18 / 0.18))
+    drop-shadow(0 4px 6px rgb(42 26 18 / 0.16));
   font-family: 'DM Sans', system-ui, sans-serif;
   line-height: 1.5;
   color-scheme: light;
@@ -34,6 +52,10 @@
     --edge: #0b0604;
     --red: #b3122b;
     --error: #ff7a85;
+    --parchment: #d9c7a0;
+    --ticket-line: #b9a487;
+    --ticket-shadow: drop-shadow(0 1px 1px rgb(0 0 0 / 0.5))
+      drop-shadow(0 5px 8px rgb(0 0 0 / 0.45));
     color-scheme: dark;
   }
 }

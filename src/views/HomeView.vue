@@ -113,7 +113,7 @@ async function onLogged(logged: Watch) {
                   class="thumb"
                   :path="w.film.poster_path"
                   :title="w.film.title"
-                  size="w92"
+                  size="w185"
                 />
                 <span class="watch-main">
                   <span class="watch-title">
@@ -197,7 +197,24 @@ ul {
 .watches {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.75rem;
+}
+
+/* Tickets lie on the page: a shadow that follows the notch, and a slight, varying tilt. */
+.watches li {
+  filter: var(--ticket-shadow);
+}
+
+.watches li:nth-child(3n + 1) {
+  transform: rotate(-0.5deg);
+}
+
+.watches li:nth-child(3n + 2) {
+  transform: rotate(0.4deg) translateX(2px);
+}
+
+.watches li:nth-child(3n) {
+  transform: rotate(-0.15deg) translateX(-1px);
 }
 
 /* Each watch is a ticket stub; the reaction is stamped on the red end. */
@@ -205,30 +222,23 @@ ul {
   position: relative;
   display: flex;
   align-items: stretch;
-  min-height: 4.4rem;
-  border: 2px solid var(--line);
+  /* Ticket proportions: about 3:8, capped so desktop tickets don't get huge. */
+  aspect-ratio: 8 / 3;
+  max-height: 9rem;
+  border: 2px solid var(--ticket-line);
   border-radius: 0.6rem;
-  background: var(--card);
-  color: inherit;
+  background: var(--parchment-paper);
+  color: var(--parchment-ink);
   text-decoration: none;
 }
 
-.undated .watch {
-  background: transparent;
-  border-style: dashed;
-  border-color: var(--faint);
-}
-
 .watch .thumb {
-  width: 2.9rem;
+  width: auto;
+  height: 100%;
   flex: none;
-  aspect-ratio: auto;
+  aspect-ratio: 2 / 3;
   border-radius: calc(0.6rem - 2px) 0 0 calc(0.6rem - 2px);
-  border-right: 2px solid var(--line);
-}
-
-.undated .watch .thumb {
-  border-right-color: var(--faint);
+  border-right: 2px solid var(--ticket-line);
 }
 
 .watch-main {
@@ -242,15 +252,18 @@ ul {
 }
 
 .watch-title {
+  font-family: var(--ticket-title);
+  font-size: 1.1rem;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .meta {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  font-family: var(--ticket-type);
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--parchment-muted);
 }
 
 .heart {
@@ -258,35 +271,22 @@ ul {
 }
 
 .stub {
-  width: 3.6rem;
+  width: 4.2rem;
   flex: none;
   display: grid;
   place-items: center;
-  padding-right: 0.55rem;
-  border-left: 2px dashed var(--line);
+  padding-right: 0.7rem;
+  border-left: 2px dashed var(--ticket-line);
   background: var(--red);
   color: var(--on-red);
   /* Covers the ticket's outline, so the colour runs right to the edge. */
   margin: -2px -2px -2px 0;
   border-radius: 0 0.6rem 0.6rem 0;
-  font-size: 1.45rem;
+  font-size: 1.75rem;
 }
 
-/* The punched notch: a page-coloured circle over the stub's outer edge. Its outer half
-   lies on the page, so no sliver of stub colour survives sub-pixel rounding. */
-.watch::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  right: calc(-2px - 0.8rem);
-  width: 1.5rem;
-  height: 1.5rem;
-  transform: translateY(-50%);
-  border-radius: 50%;
-  background: var(--bg);
-}
-
-.undated .stub {
-  border-left-color: var(--faint);
+/* The punched notch: a real cut-out, so the shadow and whatever lies below show through. */
+.watch {
+  mask: radial-gradient(circle at 100% 50%, #0000 0.9rem, #000 calc(0.9rem + 0.5px));
 }
 </style>
