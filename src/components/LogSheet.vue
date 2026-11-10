@@ -2,14 +2,16 @@
 import { ref } from 'vue'
 
 import { post } from '@/api/client'
-import type { SearchResult, Watch } from '@/api/types'
+import type { LoggedWatch, SearchResult, Watch } from '@/api/types'
 import DateField from '@/components/DateField.vue'
 import PosterImage from '@/components/PosterImage.vue'
 import ReactionPicker from '@/components/ReactionPicker.vue'
 import { ordinal, todayIso } from '@/lib/format'
+import { useRewardsStore } from '@/stores/rewards'
 
 const props = defineProps<{ film: SearchResult }>()
 const emit = defineEmits<{ logged: [watch: Watch]; close: [] }>()
+const rewards = useRewardsStore()
 
 const watchedOn = ref(todayIso())
 const reaction = ref<string | null>(null)
@@ -20,12 +22,13 @@ async function done() {
   error.value = ''
   busy.value = true
   try {
-    const watch = await post<Watch>('/watches', {
+    const { events, ...watch } = await post<LoggedWatch>('/watches', {
       tmdb_id: props.film.tmdb_id,
       watched_on: watchedOn.value,
       reaction: reaction.value,
     })
     emit('logged', watch)
+    rewards.push(events)
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {

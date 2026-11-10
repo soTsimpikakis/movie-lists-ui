@@ -3,17 +3,19 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { api, post } from '@/api/client'
-import type { Checklist } from '@/api/types'
+import type { Checklist, SeenResult } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
 import PosterTile from '@/components/PosterTile.vue'
 import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 import { useFilmSearch } from '@/composables/useFilmSearch'
+import { useRewardsStore } from '@/stores/rewards'
 
 // "Movies I've seen" (design.md §5.3): onboarding right after the invite, and "Update my
 // library" any time later. Ticked films become undated "before Movie Club" watches.
 const route = useRoute()
 const router = useRouter()
+const rewards = useRewardsStore()
 const welcome = computed(() => route.query.welcome === '1')
 
 const checklist = ref<Checklist | null>(null)
@@ -37,7 +39,8 @@ async function save() {
   busy.value = true
   error.value = ''
   try {
-    await post('/watches/seen', { tmdb_ids: [...ticked.value] })
+    const { events } = await post<SeenResult>('/watches/seen', { tmdb_ids: [...ticked.value] })
+    rewards.push(events)
     await router.replace({ name: 'home' })
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)

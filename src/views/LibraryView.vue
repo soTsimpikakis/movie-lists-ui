@@ -1,46 +1,57 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { api } from '@/api/client'
-import type { Film, Watch } from '@/api/types'
+import type { LibraryFilm, LibraryPage } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import FilmTile from '@/components/FilmTile.vue'
 import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 
-// Every film you've watched, once each, most recently watched first. Tapping one opens
-// its latest watch.
+// Every film you've watched, once each, newest to the library first, a page at a time.
+// Search runs on the server, so it covers the whole library, not just the loaded pages.
+// Tapping a film opens its latest watch.
+const PAGE = 24
 const router = useRouter()
-const watches = ref<Watch[] | null>(null)
+const films = ref<LibraryFilm[] | null>(null)
+const total = ref(0)
+const libraryTotal = ref(0)
+const nextOffset = ref<number | null>(null)
+const loadingMore = ref(false)
 const query = ref('')
+let request = 0
 
-const films = computed(() => {
-  const byFilm = new Map<number, { film: Film; latest: Watch; count: number }>()
-  // /watches is newest first, so the first watch seen per film is its latest.
-  for (const w of watches.value ?? []) {
-    const entry = byFilm.get(w.film.id)
-    if (entry) entry.count++
-    else byFilm.set(w.film.id, { film: w.film, latest: w, count: 1 })
+async function load(more = false) {
+  const mine = ++request
+  const offset = more ? (nextOffset.value ?? 0) : 0
+  const q = encodeURIComponent(query.value.trim())
+  const page = await api<LibraryPage>(`/library?q=${q}&offset=${offset}&limit=${PAGE}`)
+  // A newer search started while this one was in flight; its result wins.
+  if (mine !== request) return
+  films.value = more ? [...(films.value ?? []), ...page.items] : page.items
+  nextOffset.value = page.next_offset
+  total.value = page.total
+  if (!query.value.trim()) libraryTotal.value = page.total
+}
+
+async function loadMore() {
+  loadingMore.value = true
+  try {
+    await load(true)
+  } finally {
+    loadingMore.value = false
   }
-  return [...byFilm.values()]
+}
+
+let debounce: ReturnType<typeof setTimeout> | undefined
+watch(query, () => {
+  clearTimeout(debounce)
+  debounce = setTimeout(() => load(), 250)
 })
 
-const fold = (s: string) =>
-  s
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-
-const shown = computed(() => {
-  const q = fold(query.value.trim())
-  return q ? films.value.filter((f) => fold(f.film.title).includes(q)) : films.value
-})
-
-onMounted(async () => {
-  watches.value = await api<Watch[]>('/watches')
-})
+onMounted(() => load())
 </script>
 
 <template>
@@ -49,7 +60,7 @@ onMounted(async () => {
 
     <div class="heading">
       <h2>
-        Library <span class="count">· {{ films.length }}</span>
+        Library <span class="count">· {{ libraryTotal }}</span>
       </h2>
       <RouterLink
         :to="{ name: 'seen' }"
@@ -68,22 +79,31 @@ onMounted(async () => {
       label="Search your watched films"
     />
 
-    <p v-if="watches === null" class="muted">Loading…</p>
-    <p v-else-if="!films.length" class="muted">
+    <p v-if="films === null" class="muted">Loading…</p>
+    <p v-else-if="!libraryTotal" class="muted">
       Nothing here yet. Log a film from Watched, or tick off ones you've seen.
     </p>
-    <p v-else-if="!shown.length" class="muted">No watched film matches “{{ query }}”.</p>
+    <p v-else-if="!films.length" class="muted">No watched film matches “{{ query }}”.</p>
     <ul class="film-grid">
-      <li v-for="f in shown" :key="f.film.id">
+      <li v-for="f in films ?? []" :key="f.film.id">
         <FilmTile
           :title="f.film.title"
           :year="f.film.year"
           :poster-path="f.film.poster_path"
-          :watch-count="f.count"
-          @click="router.push({ name: 'watch', params: { id: f.latest.id } })"
+          :watch-count="f.watch_count"
+          @click="router.push({ name: 'watch', params: { id: f.latest_watch_id } })"
         />
       </li>
     </ul>
+    <button
+      v-if="nextOffset !== null"
+      class="plain load-more"
+      :disabled="loadingMore"
+      @click="loadMore"
+    >
+      <AppIcon name="chevron-down" />
+      {{ loadingMore ? 'Loading…' : `Load more · ${total - (films?.length ?? 0)} left` }}
+    </button>
 
     <TmdbCredit />
   </main>
@@ -113,5 +133,10 @@ onMounted(async () => {
 
 .search {
   margin-bottom: 1.25rem;
+}
+
+.load-more {
+  width: 100%;
+  margin-top: 1.5rem;
 }
 </style>

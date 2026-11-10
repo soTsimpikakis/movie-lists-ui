@@ -27,7 +27,29 @@ export interface Watch {
   note: string | null
   created_at: string
   watch_number: number
+  /** The ticket's serial: the user's Nth logged watch, by when it was added. */
+  serial: number
   film: Film
+}
+
+/** A page of the Watched list; `next_offset` is null on the last page. */
+export interface WatchPage {
+  items: Watch[]
+  next_offset: number | null
+  dated_total: number
+  undated_total: number
+}
+
+export interface LibraryFilm {
+  film: Film
+  watch_count: number
+  latest_watch_id: number
+}
+
+export interface LibraryPage {
+  items: LibraryFilm[]
+  next_offset: number | null
+  total: number
 }
 
 export interface SetSummary {
@@ -38,6 +60,8 @@ export interface SetSummary {
   theme_key: string | null
   total: number
   watched: number
+  /** Gold: every film watched. Silver: completed once, but a film was added since. */
+  trophy: 'gold' | 'silver' | null
 }
 
 export interface SetFilm {
@@ -76,4 +100,24 @@ export interface Reaction {
   key: string
   emoji: string
   label: string
+}
+
+/** What a new watch changed (design.md §6.3), shown as reward cards. */
+export interface RewardEvent {
+  kind: 'set_progressed' | 'set_completed' | 'set_polished'
+  set_id: number
+  title: string
+  theme_key: string | null
+  watched: number
+  total: number
+  new_films: string[]
+}
+
+export interface LoggedWatch extends Watch {
+  events: RewardEvent[]
+}
+
+export interface SeenResult {
+  added: number
+  events: RewardEvent[]
 }

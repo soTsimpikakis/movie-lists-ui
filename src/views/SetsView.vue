@@ -25,7 +25,7 @@ onMounted(async () => {
              piles lean the other way so the list looks hand-stacked. -->
         <RouterLink
           class="pile"
-          :class="{ done: s.watched === s.total, flip: i % 2 }"
+          :class="[s.trophy, { flip: i % 2 }]"
           :to="{ name: 'set', params: { id: s.id } }"
         >
           <span class="under under-2" aria-hidden="true" />
@@ -189,16 +189,34 @@ onMounted(async () => {
   text-transform: uppercase;
 }
 
-/* A completed set: gold stub, all holes punched. */
-.done .stub {
-  background: var(--mustard);
-  color: var(--on-mustard);
+/* Trophies (design.md §6.2): gold when every film is watched; silver when the set was
+   completed once and a film has joined since. */
+.pile {
+  --stub-colour: var(--red);
+  --stub-ink: var(--on-red);
 }
 
-.done .under {
+.gold {
+  --stub-colour: var(--mustard);
+  --stub-ink: var(--on-mustard);
+}
+
+.silver {
+  --stub-colour: #c3c7cc;
+  --stub-ink: #2a1a12;
+}
+
+.gold .stub,
+.silver .stub {
+  background: var(--stub-colour);
+  color: var(--stub-ink);
+}
+
+.gold .under,
+.silver .under {
   background:
     linear-gradient(rgb(60 40 20 / var(--shade)), rgb(60 40 20 / var(--shade))),
-    linear-gradient(to left, var(--mustard) var(--stub), transparent var(--stub)),
+    linear-gradient(to left, var(--stub-colour) var(--stub), transparent var(--stub)),
     var(--parchment-paper);
 }
 </style>

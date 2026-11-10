@@ -3,15 +3,17 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { api, post } from '@/api/client'
-import type { SearchResult, SetDetail, SetFilm } from '@/api/types'
+import type { SearchResult, SeenResult, SetDetail, SetFilm } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import FilmTile from '@/components/FilmTile.vue'
 import LogSheet from '@/components/LogSheet.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
+import { useRewardsStore } from '@/stores/rewards'
 
 const route = useRoute()
+const rewards = useRewardsStore()
 const id = Number(route.params.id)
 
 const set = ref<SetDetail | null>(null)
@@ -59,9 +61,10 @@ function cancelSelecting() {
 async function saveTicked() {
   busy.value = true
   try {
-    const { added } = await post<{ added: number }>('/watches/seen', {
+    const { added, events } = await post<SeenResult>('/watches/seen', {
       tmdb_ids: [...ticked.value],
     })
+    rewards.push(events)
     cancelSelecting()
     flash(`Added ${added} film${added === 1 ? '' : 's'}`)
     await load()
@@ -87,13 +90,25 @@ async function onLogged() {
       <section class="ticket">
         <div class="heading">
           <h2>{{ set.title }}</h2>
-          <span class="progress">
-            {{ complete ? 'Complete ✓' : `${set.watched} of ${set.total}` }}
+          <span class="progress" :class="set.trophy">
+            {{
+              set.trophy === 'gold'
+                ? 'Gold ✓'
+                : set.trophy === 'silver'
+                  ? `Silver · ${set.watched} of ${set.total}`
+                  : `${set.watched} of ${set.total}`
+            }}
           </span>
         </div>
         <TicketProgress :watched="set.watched" :total="set.total" />
         <span class="to-go">
-          {{ complete ? 'Every film watched. Take a bow.' : `${set.total - set.watched} to go.` }}
+          {{
+            complete
+              ? 'Every film watched. Take a bow.'
+              : set.trophy === 'silver'
+                ? `A new film joined. Watch it to polish this back to gold.`
+                : `${set.total - set.watched} to go.`
+          }}
         </span>
       </section>
 
@@ -170,6 +185,10 @@ async function onLogged() {
   text-transform: uppercase;
   color: var(--mustard);
   white-space: nowrap;
+}
+
+.progress.silver {
+  color: #c3c7cc;
 }
 
 .to-go {
