@@ -8,7 +8,7 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-const email = ref('')
+const login = ref('')
 const password = ref('')
 const error = ref('')
 const busy = ref(false)
@@ -17,7 +17,7 @@ async function submit() {
   error.value = ''
   busy.value = true
   try {
-    await auth.login(email.value, password.value)
+    await auth.login(login.value, password.value)
     const next = typeof route.query.next === 'string' ? route.query.next : '/'
     // Only follow in-app paths, never "//other-site".
     await router.replace(next.startsWith('/') && !next.startsWith('//') ? next : '/')
@@ -35,8 +35,15 @@ async function submit() {
     <h1>Movie Club</h1>
     <form class="stack" @submit.prevent="submit">
       <label>
-        Email
-        <input v-model="email" type="email" autocomplete="email" required />
+        Email or username
+        <input
+          v-model="login"
+          autocomplete="username"
+          autocapitalize="none"
+          spellcheck="false"
+          maxlength="320"
+          required
+        />
       </label>
       <label>
         Password

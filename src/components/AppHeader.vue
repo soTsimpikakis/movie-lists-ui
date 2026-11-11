@@ -1,25 +1,27 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
 
-import AppIcon from '@/components/AppIcon.vue'
+import { userTag } from '@/lib/username'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
-const router = useRouter()
-
-async function logout() {
-  await auth.logout()
-  await router.push({ name: 'login' })
-}
+const initial = computed(() => (auth.user?.display_name.trim()[0] ?? '?').toUpperCase())
+const tag = computed(() => (auth.user ? userTag(auth.user) : ''))
 </script>
 
 <template>
   <header class="app-header">
     <div class="topbar">
       <h1>Movie Club</h1>
-      <button class="logout small" @click="logout">
-        <AppIcon name="logout" :size="14" /> Log out
-      </button>
+      <!-- Profile: name, username, password, log out. -->
+      <RouterLink
+        :to="{ name: 'profile' }"
+        class="button-link profile"
+        :aria-label="`Profile: ${tag}`"
+        :title="`Profile · ${tag}`"
+      >
+        {{ initial }}
+      </RouterLink>
     </div>
     <span class="tagline">Now showing · your life in films</span>
   </header>
@@ -64,11 +66,23 @@ h1 {
   letter-spacing: 0.02em;
 }
 
-.logout {
+.profile {
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border-color: var(--on-red);
+  border-radius: 50%;
   background: transparent;
   color: var(--on-red);
-  border-color: var(--on-red);
   box-shadow: none;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 1.15rem;
+}
+
+.profile.router-link-active {
+  background: var(--on-red);
+  color: var(--red);
 }
 
 .tagline {

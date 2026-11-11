@@ -19,12 +19,17 @@ describe('auth store', () => {
     expect(auth.user).toBeNull()
   })
 
-  it('stores the user after login', async () => {
-    const me = { id: 1, email: 'ann@example.com', display_name: 'Ann' }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respond(200, me)))
+  it('stores the user after login with a username or email', async () => {
+    const me = { id: 1, email: 'ann@example.com', username: 'ann', display_name: 'Ann' }
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(respond(200, me))
+    vi.stubGlobal('fetch', fetch)
     const auth = useAuthStore()
-    await auth.login('ann@example.com', 'secret123')
+    await auth.login('ann', 'secret123')
     expect(auth.user).toEqual(me)
+    expect(JSON.parse(String(fetch.mock.calls[0]![1]!.body))).toEqual({
+      login: 'ann',
+      password: 'secret123',
+    })
   })
 
   it('surfaces the API error message on failed login', async () => {

@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { api, ApiError, post } from '@/api/client'
+import { api, ApiError, patch, post } from '@/api/client'
 
 export interface Me {
   id: number
   email: string
+  username: string
   display_name: string
 }
 
@@ -24,14 +25,33 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function login(email: string, password: string) {
-    user.value = await post<Me>('/auth/login', { email, password })
+  /** `login` is an email or a username. */
+  async function login(login: string, password: string) {
+    user.value = await post<Me>('/auth/login', { login, password })
   }
 
-  async function acceptInvite(token: string, displayName: string, password: string) {
+  async function acceptInvite(
+    token: string,
+    displayName: string,
+    username: string,
+    password: string,
+  ) {
     user.value = await post<Me>(`/invites/${encodeURIComponent(token)}/accept`, {
       display_name: displayName,
+      username,
       password,
+    })
+  }
+
+  async function updateProfile(changes: { display_name?: string; username?: string }) {
+    user.value = await patch<Me>('/auth/me', changes)
+  }
+
+  /** Logs this account out on every other device. */
+  async function changePassword(currentPassword: string, newPassword: string) {
+    await post('/auth/password', {
+      current_password: currentPassword,
+      new_password: newPassword,
     })
   }
 
@@ -40,5 +60,5 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
   }
 
-  return { user, loaded, fetchMe, login, acceptInvite, logout }
+  return { user, loaded, fetchMe, login, acceptInvite, updateProfile, changePassword, logout }
 })

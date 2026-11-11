@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { api } from '@/api/client'
+import { USERNAME_PATTERN, suggestUsername } from '@/lib/username'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -13,6 +14,7 @@ const token = String(route.params.token)
 const email = ref<string | null>(null)
 const invalid = ref(false)
 const displayName = ref('')
+const username = ref('')
 const password = ref('')
 const error = ref('')
 const busy = ref(false)
@@ -20,6 +22,7 @@ const busy = ref(false)
 onMounted(async () => {
   try {
     email.value = (await api<{ email: string }>(`/invites/${encodeURIComponent(token)}`)).email
+    username.value = suggestUsername(email.value)
   } catch {
     invalid.value = true
   }
@@ -29,7 +32,7 @@ async function submit() {
   error.value = ''
   busy.value = true
   try {
-    await auth.acceptInvite(token, displayName.value, password.value)
+    await auth.acceptInvite(token, displayName.value, username.value, password.value)
     // Straight into "Movies I've seen", so the first real screen already has progress (§5.3).
     await router.replace({ name: 'seen', query: { welcome: '1' } })
   } catch (e) {
@@ -56,6 +59,22 @@ async function submit() {
       <label>
         Your name
         <input v-model="displayName" autocomplete="nickname" maxlength="80" required />
+      </label>
+      <label>
+        Username
+        <input
+          v-model="username"
+          autocomplete="username"
+          autocapitalize="none"
+          spellcheck="false"
+          :pattern="USERNAME_PATTERN"
+          maxlength="30"
+          required
+          aria-describedby="username-hint"
+        />
+        <span id="username-hint" class="hint">
+          You can log in with this or your email. Letters, numbers, dots and underscores.
+        </span>
       </label>
       <label>
         Password
@@ -85,5 +104,11 @@ async function submit() {
 h1 {
   margin: 0.4rem 0 1.25rem;
   font-size: 1.8rem;
+}
+
+.hint {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
 }
 </style>
