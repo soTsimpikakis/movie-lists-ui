@@ -18,6 +18,7 @@ const router = createRouter({
     { path: '/library', name: 'library', component: () => import('@/views/LibraryView.vue') },
     { path: '/sets', name: 'sets', component: () => import('@/views/SetsView.vue') },
     { path: '/sets/:id', name: 'set', component: () => import('@/views/SetView.vue') },
+    { path: '/journey', name: 'journey', component: () => import('@/views/JourneyView.vue') },
     { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue') },
     { path: '/seen', name: 'seen', component: () => import('@/views/SeenView.vue') },
     {

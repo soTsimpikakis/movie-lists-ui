@@ -2,14 +2,16 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { api, post } from '@/api/client'
-import type { BrowsePage, Checklist, SearchResult, SeenResult } from '@/api/types'
+import { api } from '@/api/client'
+import type { BrowsePage, Checklist, SearchResult } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
+import BulkProgress from '@/components/BulkProgress.vue'
 import FilmFilters, { type Filters } from '@/components/FilmFilters.vue'
 import PosterTile from '@/components/PosterTile.vue'
 import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 import { useFilmSearch } from '@/composables/useFilmSearch'
+import { saveSeen } from '@/lib/bulk'
 import { useRewardsStore } from '@/stores/rewards'
 
 // "Movies I've seen" (design.md §5.3): onboarding right after the invite, and "Update my
@@ -89,17 +91,25 @@ function toggle(tmdbId: number) {
   ticked.value = next
 }
 
+// Big saves show the ticket-box loading screen; small ones are over before it would matter.
+const BIG_SAVE = 20
+const progress = ref<{ done: number; total: number } | null>(null)
+
 async function save() {
   busy.value = true
   error.value = ''
+  const ids = [...ticked.value]
   try {
-    const { events } = await post<SeenResult>('/watches/seen', { tmdb_ids: [...ticked.value] })
+    const { events } = await saveSeen(ids, (done, total) => {
+      if (total > BIG_SAVE) progress.value = { done, total }
+    })
     rewards.push(events)
     await router.replace({ name: 'home' })
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
     busy.value = false
+    progress.value = null
   }
 }
 </script>
@@ -226,6 +236,8 @@ async function save() {
 
     <TmdbCredit />
 
+    <BulkProgress v-if="progress" :done="progress.done" :total="progress.total" />
+
     <div class="action-bar">
       <RouterLink v-if="welcome" :to="{ name: 'home' }" class="button-link plain skip">
         Skip for now
@@ -233,7 +245,13 @@ async function save() {
       <p v-if="error" class="error">{{ error }}</p>
       <button :disabled="!ticked.size || busy" @click="save">
         <AppIcon name="check" :size="14" />
-        {{ busy ? 'Saving…' : ticked.size ? `Save ${ticked.size} films` : 'Tick films to save' }}
+        {{
+          busy
+            ? 'Saving…'
+            : ticked.size
+              ? `Save ${ticked.size} film${ticked.size === 1 ? '' : 's'}`
+              : 'Tick films to save'
+        }}
       </button>
     </div>
   </main>

@@ -2,7 +2,10 @@
 import { computed, ref } from 'vue'
 
 import AppIcon from '@/components/AppIcon.vue'
+import LevelPips from '@/components/LevelPips.vue'
+import PassportStamp from '@/components/PassportStamp.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
+import { decadeLabel } from '@/lib/journey'
 import { rewardCopy } from '@/lib/rewardCopy'
 import { useRewardsStore } from '@/stores/rewards'
 
@@ -11,6 +14,29 @@ import { useRewardsStore } from '@/stores/rewards'
 const rewards = useRewardsStore()
 const current = computed(() => rewards.queue[0])
 const copy = computed(() => current.value && rewardCopy(current.value))
+
+// The current card, narrowed to the kind of event it shows.
+const setEvent = computed(() => {
+  const e = current.value
+  return e && 'set_id' in e ? e : null
+})
+const levelEvent = computed(() => {
+  const e = current.value
+  return e && (e.kind === 'genre_level' || e.kind === 'decade_level') ? e : null
+})
+const stamp = computed(() => {
+  const e = current.value
+  return e?.kind === 'country_stamp' ? e : null
+})
+const summary = computed(() => {
+  const e = current.value
+  return e?.kind === 'journey_summary' ? e : null
+})
+const icon = computed(() => {
+  if (current.value?.kind === 'set_progressed') return 'sparkle'
+  if (stamp.value || summary.value) return 'globe'
+  return 'trophy'
+})
 const celebrating = ref(false)
 const confetti = Array.from({ length: 24 }, (_, i) => ({
   angle: (360 / 24) * i + (i % 3) * 7,
@@ -39,23 +65,49 @@ function celebrate() {
         <span v-if="rewards.queue.length > 2" class="under under-2" aria-hidden="true" />
         <span v-if="rewards.queue.length > 1" class="under under-1" aria-hidden="true" />
         <article
-          :key="`${current.set_id}-${current.kind}-${rewards.queue.length}`"
+          :key="`${current.kind}-${rewards.queue.length}`"
           class="card"
           :class="[current.kind, { leaving: celebrating }]"
         >
           <header class="band">
-            <AppIcon :name="current.kind === 'set_progressed' ? 'sparkle' : 'trophy'" :size="18" />
+            <AppIcon :name="icon" :size="18" />
             <span>{{ copy.label }}</span>
           </header>
           <div class="body">
+            <PassportStamp v-if="stamp" class="hero-stamp" :code="stamp.subject" :tilt="-10" />
             <h2>{{ copy.headline }}</h2>
-            <p class="set-name" v-if="current.kind !== 'set_progressed'">{{ current.title }}</p>
-            <TicketProgress
-              class="holes"
-              :watched="current.watched"
-              :total="current.total"
-              :fresh="current.new_films.length"
-            />
+            <template v-if="setEvent">
+              <p v-if="setEvent.kind !== 'set_progressed'" class="set-name">{{ setEvent.title }}</p>
+              <TicketProgress
+                class="holes"
+                :watched="setEvent.watched"
+                :total="setEvent.total"
+                :fresh="setEvent.new_films.length"
+              />
+            </template>
+            <LevelPips v-else-if="levelEvent" class="pips" :level="levelEvent.level" fresh />
+            <template v-else-if="summary">
+              <span v-if="summary.stamps.length" class="mini-stamps">
+                <PassportStamp
+                  v-for="(code, i) in summary.stamps.slice(0, 8)"
+                  :key="code"
+                  :code="code"
+                  :tilt="(i % 3) * 7 - 7"
+                  small
+                />
+                <span v-if="summary.stamps.length > 8" class="more">
+                  +{{ summary.stamps.length - 8 }}
+                </span>
+              </span>
+              <span class="chips">
+                <span v-for="g in summary.genre_levels" :key="`g-${g.subject}`" class="chip">
+                  {{ g.subject }} · {{ g.level_name }}
+                </span>
+                <span v-for="d in summary.decade_levels" :key="`d-${d.subject}`" class="chip">
+                  {{ decadeLabel(d.subject) }} · {{ d.level_name }}
+                </span>
+              </span>
+            </template>
             <p class="text">{{ copy.body }}</p>
           </div>
         </article>
@@ -219,6 +271,56 @@ h2 {
 .set_completed .holes,
 .set_polished .holes {
   --hole-on: var(--mustard);
+}
+
+/* Journey cards: levels show five pips; stamps and the bulk summary are passport-ink dark. */
+.pips {
+  --pip-on: var(--red);
+  --pip-off: var(--parchment-muted);
+  transform: scale(1.4);
+  margin: 0.3rem 0;
+}
+
+.country_stamp .band,
+.journey_summary .band {
+  background: var(--parchment-ink);
+  color: var(--parchment);
+}
+
+.hero-stamp {
+  --stamp-paper: var(--parchment);
+  margin-bottom: 0.2rem;
+}
+
+.mini-stamps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35rem;
+  --stamp-paper: var(--parchment);
+}
+
+.more {
+  font-family: var(--ticket-type);
+  color: var(--parchment-muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.chip {
+  padding: 0.15rem 0.55rem;
+  border: 1.5px solid var(--red);
+  border-radius: 999px;
+  font-family: var(--ticket-type);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--red);
 }
 
 .text {

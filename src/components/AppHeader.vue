@@ -32,6 +32,7 @@ const tag = computed(() => (auth.user ? userTag(auth.user) : ''))
     <RouterLink :to="{ name: 'sets' }" :class="{ 'router-link-active': $route.name === 'set' }">
       Sets
     </RouterLink>
+    <RouterLink :to="{ name: 'journey' }">Journey</RouterLink>
   </nav>
 </template>
 
@@ -116,5 +117,20 @@ h1 {
 .tabs a.router-link-active {
   background: var(--bg);
   color: var(--fg);
+}
+
+/* Four tabs on a phone: a little tighter, and they can scroll sideways if a screen is tiny. */
+@media (max-width: 480px) {
+  .tabs {
+    gap: 0.15rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tabs a {
+    flex: none;
+    padding: 0.6rem 0.6rem;
+    font-size: 0.8rem;
+  }
 }
 </style>

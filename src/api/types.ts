@@ -102,8 +102,8 @@ export interface Reaction {
   label: string
 }
 
-/** What a new watch changed (design.md §6.3), shown as reward cards. */
-export interface RewardEvent {
+/** A set moved, was completed, or was polished back to gold (design.md §6.2–6.3). */
+export interface SetRewardEvent {
   kind: 'set_progressed' | 'set_completed' | 'set_polished'
   set_id: number
   title: string
@@ -111,6 +111,66 @@ export interface RewardEvent {
   watched: number
   total: number
   new_films: string[]
+}
+
+/** A Journey level reached or a passport stamp earned by one watch (design.md §12, 6B). */
+export interface JourneyRewardEvent {
+  kind: 'genre_level' | 'decade_level' | 'country_stamp'
+  /** A genre name, a decade ("1990") or a country code ("KR"). */
+  subject: string
+  level: number
+  level_name: string | null
+  count: number
+  next_at: number | null
+}
+
+export interface LevelUp {
+  subject: string
+  level: number
+  level_name: string | null
+}
+
+/** Everything a bulk add earned on the Journey, as one card. */
+export interface JourneySummaryEvent {
+  kind: 'journey_summary'
+  stamps: string[]
+  genre_levels: LevelUp[]
+  decade_levels: LevelUp[]
+}
+
+/** What a new watch changed, shown as reward cards. */
+export type RewardEvent = SetRewardEvent | JourneyRewardEvent | JourneySummaryEvent
+
+export interface JourneyLevel {
+  subject: string
+  count: number
+  level: number
+  level_name: string | null
+  next_at: number | null
+}
+
+/** Everything on the Journey tab. */
+export interface Journey {
+  summary: {
+    films: number
+    watches: number
+    hours: number
+    this_year: number
+    first_ticket: { title: string; watched_on: string } | null
+    oldest_film: { title: string; year: number } | null
+    top_reaction: { name: string; count: number } | null
+    top_genre: { name: string; count: number } | null
+  }
+  expertise: JourneyLevel[]
+  eras: JourneyLevel[]
+  passport: { code: string; count: number; stamped_at: string | null }[]
+  trophies: {
+    set_id: number
+    title: string
+    trophy: 'gold' | 'silver'
+    watched: number
+    total: number
+  }[]
 }
 
 export interface LoggedWatch extends Watch {
