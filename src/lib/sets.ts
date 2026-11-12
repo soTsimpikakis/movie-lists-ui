@@ -13,7 +13,7 @@ export interface SetGroups {
   /** Every Best Picture winner, as a pile of its own. */
   allWinners: SetSummary | null
   decades: AwardTile[]
-  /** One per ceremony, newest first. */
+  /** One per ceremony, oldest first. */
   ceremonies: AwardTile[]
 }
 
@@ -38,6 +38,62 @@ export function groupSets(sets: SetSummary[]): SetGroups {
       numbers.set(set.id, Number(ceremony[1]))
     } else groups.piles.push(set)
   }
-  groups.ceremonies.sort((a, b) => numbers.get(b.set.id)! - numbers.get(a.set.id)!)
+  groups.ceremonies.sort((a, b) => numbers.get(a.set.id)! - numbers.get(b.set.id)!)
   return groups
+}
+
+/** Ceremonies by the decade they were held in (1950 for 1950–1959), oldest first. */
+export function byDecade(ceremonies: AwardTile[]): Map<number, AwardTile[]> {
+  const decades = new Map<number, AwardTile[]>()
+  for (const tile of ceremonies) {
+    const decade = Math.floor(Number(tile.big) / 10) * 10
+    decades.set(decade, [...(decades.get(decade) ?? []), tile])
+  }
+  return decades
+}
+
+/** Sets that belong together, in order, for stepping through with previous and next. */
+export interface Series {
+  name: string
+  items: { set: SetSummary; label: string }[]
+}
+
+export function seriesOf(sets: SetSummary[]): Series[] {
+  const g = groupSets(sets)
+  const winners = [
+    ...(g.allWinners ? [{ set: g.allWinners, label: 'Every winner' }] : []),
+    ...g.decades.map((t) => ({ set: t.set, label: t.big })),
+  ]
+  return [
+    { name: 'Franchises & directors', items: g.piles.map((set) => ({ set, label: set.title })) },
+    { name: 'Best Picture winners', items: winners },
+    {
+      name: 'Best Picture by year',
+      items: g.ceremonies.map((t) => ({ set: t.set, label: t.big })),
+    },
+  ].filter((s) => s.items.length)
+}
+
+export interface Neighbours {
+  series: string
+  /** 1-based place in the series, and how many it has. */
+  position: number
+  count: number
+  prev: { set: SetSummary; label: string } | null
+  next: { set: SetSummary; label: string } | null
+}
+
+export function neighbours(sets: SetSummary[], id: number): Neighbours | null {
+  for (const series of seriesOf(sets)) {
+    const i = series.items.findIndex((item) => item.set.id === id)
+    if (i === -1) continue
+    return {
+      series: series.name,
+      position: i + 1,
+      count: series.items.length,
+      prev: series.items[i - 1] ?? null,
+      next: series.items[i + 1] ?? null,
+    }
+  }
+  return null
 }

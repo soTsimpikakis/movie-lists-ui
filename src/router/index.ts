@@ -12,6 +12,9 @@ declare module 'vue-router' {
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  // Back and forward return to where you were (Sets keeps its list, so the spot still
+  // exists); anywhere new starts at the top.
+  scrollBehavior: (_to, _from, saved) => saved ?? { top: 0 },
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/watches/:id', name: 'watch', component: () => import('@/views/WatchView.vue') },

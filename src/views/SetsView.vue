@@ -1,40 +1,46 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 
-import { api } from '@/api/client'
-import type { SetSummary } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
-import AppIcon from '@/components/AppIcon.vue'
 import SetPile from '@/components/SetPile.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
-import { groupSets } from '@/lib/sets'
+import { byDecade, groupSets } from '@/lib/sets'
+import { useSetsStore } from '@/stores/sets'
 
-const sets = ref<SetSummary[] | null>(null)
-const groups = computed(() => groupSets(sets.value ?? []))
+// Sets live in a store, so coming back here shows them at once (and back restores the
+// scroll); the many Best Picture years show one decade at a time to keep the page light.
+const store = useSetsStore()
+const groups = computed(() => groupSets(store.sets ?? []))
 const hasAwards = computed(
   () => Boolean(groups.value.allWinners) || groups.value.ceremonies.length > 0,
 )
+const done = (sets: { trophy: string | null }[]) => sets.filter((s) => s.trophy === 'gold').length
 
-// A hundred-odd ceremonies is a long scroll; the latest few show until asked for the rest.
-const RECENT_CEREMONIES = 12
-const allCeremonies = ref(false)
+const decades = computed(() => byDecade(groups.value.ceremonies))
+// The latest decade until the user picks another; the store remembers the pick.
+const decade = computed({
+  get: () => store.ceremonyDecade ?? [...decades.value.keys()].at(-1) ?? null,
+  set: (value) => (store.ceremonyDecade = value),
+})
 const shownCeremonies = computed(() =>
-  allCeremonies.value
-    ? groups.value.ceremonies
-    : groups.value.ceremonies.slice(0, RECENT_CEREMONIES),
+  decade.value === null ? [] : (decades.value.get(decade.value) ?? []),
 )
 
-onMounted(async () => {
-  sets.value = await api<SetSummary[]>('/sets')
-})
+const awardSets = computed(() => [
+  ...(groups.value.allWinners ? [groups.value.allWinners] : []),
+  ...groups.value.decades.map((t) => t.set),
+  ...groups.value.ceremonies.map((t) => t.set),
+])
+
+onMounted(() => store.load())
 </script>
 
 <template>
   <main class="page wide">
     <AppHeader />
 
-    <p v-if="sets === null" class="muted">Loading…</p>
-    <p v-else-if="!sets.length" class="muted">No sets yet.</p>
+    <p v-if="store.sets === null" class="muted">Loading…</p>
+    <p v-else-if="!store.sets.length" class="muted">No sets yet.</p>
     <template v-else>
       <h2 v-if="hasAwards" class="group">Franchises &amp; directors</h2>
       <ul class="sets">
@@ -44,7 +50,10 @@ onMounted(async () => {
       </ul>
 
       <template v-if="hasAwards">
-        <h2 class="group">Best Picture</h2>
+        <h2 class="group">
+          Best Picture
+          <span class="tally">{{ done(awardSets) }} of {{ awardSets.length }} sets done</span>
+        </h2>
         <ul v-if="groups.allWinners" class="sets">
           <li><SetPile :set="groups.allWinners" /></li>
         </ul>
@@ -65,6 +74,22 @@ onMounted(async () => {
         </ul>
 
         <h3 v-if="groups.ceremonies.length" class="sub">Nominees by year</h3>
+        <div class="decade-tabs" role="group" aria-label="Decade of the ceremonies">
+          <button
+            v-for="[d, tiles] in decades"
+            :key="d"
+            type="button"
+            class="small"
+            :class="d === decade ? 'mustard' : 'plain'"
+            :aria-pressed="d === decade"
+            @click="decade = d"
+          >
+            {{ d }}s
+            <span v-if="done(tiles.map((t) => t.set))" class="tab-done">
+              {{ done(tiles.map((t) => t.set)) }}✓
+            </span>
+          </button>
+        </div>
         <ul class="stubs">
           <li v-for="t in shownCeremonies" :key="t.set.id">
             <RouterLink
@@ -74,21 +99,12 @@ onMounted(async () => {
               :aria-label="`${t.set.title}: ${t.set.watched} of ${t.set.total} watched`"
             >
               <span class="big">{{ t.big }}</span>
-              <span class="small">{{ t.small }}</span>
+              <span class="nth">{{ t.small }}</span>
               <span class="count">{{ t.set.watched }}/{{ t.set.total }}</span>
               <TicketProgress class="bar" :watched="t.set.watched" :total="t.set.total" strip />
             </RouterLink>
           </li>
         </ul>
-        <button
-          v-if="groups.ceremonies.length > RECENT_CEREMONIES"
-          class="plain more"
-          :aria-expanded="allCeremonies"
-          @click="allCeremonies = !allCeremonies"
-        >
-          <AppIcon :name="allCeremonies ? 'chevron-up' : 'chevron-down'" />
-          {{ allCeremonies ? 'Show fewer' : `Show all ${groups.ceremonies.length} years` }}
-        </button>
       </template>
     </template>
   </main>
@@ -144,7 +160,8 @@ onMounted(async () => {
   background: var(--parchment-paper);
   color: var(--parchment-ink);
   text-decoration: none;
-  filter: var(--ticket-shadow);
+  /* A plain box shadow: a drop-shadow filter on dozens of tiles is slow to scroll. */
+  box-shadow: 0 1px 1px rgb(42 26 18 / 0.18);
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.08s;
   --hole-on: var(--red);
@@ -162,12 +179,16 @@ onMounted(async () => {
   line-height: 1.1;
 }
 
-.stub-tile .small,
+.stub-tile .nth,
 .stub-tile .count {
   font-family: var(--ticket-type);
   font-size: 0.7rem;
   letter-spacing: 0.04em;
   color: var(--parchment-muted);
+}
+
+.stub-tile .nth {
+  white-space: nowrap;
 }
 
 .stub-tile .count {
@@ -185,17 +206,44 @@ onMounted(async () => {
 /* Trophies, as on the piles: gold when every film is watched, silver once a film joined. */
 .stub-tile.gold {
   border-color: var(--mustard);
-  box-shadow: inset 0 0 0 2px var(--mustard);
+  box-shadow:
+    inset 0 0 0 2px var(--mustard),
+    0 1px 1px rgb(42 26 18 / 0.18);
   --hole-on: var(--mustard);
 }
 
 .stub-tile.silver {
-  box-shadow: inset 0 0 0 2px #c3c7cc;
+  box-shadow:
+    inset 0 0 0 2px #c3c7cc,
+    0 1px 1px rgb(42 26 18 / 0.18);
 }
 
-.more {
-  width: 100%;
-  margin-top: 1rem;
+.tally {
+  margin-left: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+/* One decade of ceremonies at a time; the row scrolls sideways on a phone. */
+.decade-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0 -1rem 0.9rem;
+  padding: 0.2rem 1rem 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.decade-tabs button {
+  flex: none;
+}
+
+.tab-done {
+  font-family: var(--mono);
+  font-size: 0.7rem;
 }
 
 @media (min-width: 900px) {
