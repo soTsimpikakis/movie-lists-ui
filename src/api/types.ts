@@ -5,6 +5,9 @@ export interface SearchResult {
   poster_path: string | null
   /** Main genre (TMDB's first); colours the ticket. */
   genre: string | null
+  /** TMDB's average rating (0-10) and how many people rated it. */
+  vote_average: number
+  vote_count: number
   watch_count: number
 }
 

@@ -8,6 +8,8 @@ export interface Me {
   email: string
   username: string
   display_name: string
+  /** Show reward cards after logging (Profile > Settings). */
+  celebrations: boolean
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -43,7 +45,11 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
-  async function updateProfile(changes: { display_name?: string; username?: string }) {
+  async function updateProfile(changes: {
+    display_name?: string
+    username?: string
+    celebrations?: boolean
+  }) {
     user.value = await patch<Me>('/auth/me', changes)
   }
 

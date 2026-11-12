@@ -1,18 +1,14 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { api } from '@/api/client'
 import type { Genre, Person } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
+import { emptyFilters, type Filters, isFiltering, SORTS, type Sort } from '@/lib/filters'
 
-export interface Filters {
-  director: Person | null
-  year: number | null
-  genre: number | null
-}
-
-// Director / year / genre filters for finding films to tick off in bulk. The director is
-// picked from a people search, so namesakes can be told apart by what they're known for.
+// Person / years / genre filters for finding films to tick off in bulk, plus the order and
+// whether to hide films already in the library. The person is picked from a people search
+// (actors, directors, composers...), so namesakes can be told apart by what they're known for.
 const filters = defineModel<Filters>({ required: true })
 
 const thisYear = new Date().getFullYear()
@@ -20,8 +16,21 @@ const years = Array.from({ length: thisYear - 1919 }, (_, i) => thisYear - i)
 const genres = ref<Genre[]>([])
 const personQuery = ref('')
 const people = ref<Person[]>([])
+const active = computed(() => isFiltering(filters.value))
 let debounce: ReturnType<typeof setTimeout> | undefined
 let request = 0
+
+// What the person's films are, going by the role TMDB knows them for (the API lists them
+// in that role only).
+const ROLES: Record<string, string> = {
+  Acting: 'With',
+  Directing: 'Dir.',
+  Sound: 'Music',
+  Writing: 'Writer',
+  Camera: 'Camera',
+  Editing: 'Editor',
+  Production: 'Prod.',
+}
 
 onMounted(async () => {
   genres.value = await api<Genre[]>('/genres')
@@ -41,45 +50,52 @@ watch(personQuery, (q) => {
 })
 
 function pick(person: Person) {
-  filters.value = { ...filters.value, director: person }
+  filters.value = { ...filters.value, person }
   personQuery.value = ''
   people.value = []
 }
 
-function set<K extends keyof Filters>(key: K, value: Filters[K]) {
-  filters.value = { ...filters.value, [key]: value }
+function set(changes: Partial<Filters>) {
+  const next = { ...filters.value, ...changes }
+  // A range picked backwards is still the range they meant.
+  if (next.yearFrom && next.yearTo && next.yearFrom > next.yearTo) {
+    ;[next.yearFrom, next.yearTo] = [next.yearTo, next.yearFrom]
+  }
+  filters.value = next
 }
 
-function setNumber(key: 'year' | 'genre', event: Event) {
+function selected(event: Event): number | null {
   const value = (event.target as HTMLSelectElement).value
-  set(key, value ? Number(value) : null)
+  return value ? Number(value) : null
 }
 
 function clearAll() {
-  filters.value = { director: null, year: null, genre: null }
+  const { sort, hideSeen } = filters.value
+  filters.value = { ...emptyFilters(), sort, hideSeen }
 }
 </script>
 
 <template>
   <div class="filters" role="group" aria-label="Filter films">
-    <div class="director">
+    <div class="person">
       <button
-        v-if="filters.director"
+        v-if="filters.person"
         type="button"
         class="chip small"
-        :aria-label="`Remove director filter ${filters.director.name}`"
-        @click="set('director', null)"
+        :aria-label="`Remove person filter ${filters.person.name}`"
+        @click="set({ person: null })"
       >
-        <span class="chip-label">Dir.</span> {{ filters.director.name }}
+        <span class="chip-label">{{ ROLES[filters.person.department ?? ''] ?? 'With' }}</span>
+        {{ filters.person.name }}
         <AppIcon name="close" :size="12" />
       </button>
       <template v-else>
         <input
           v-model="personQuery"
           type="search"
-          placeholder="Director…"
+          placeholder="Actor, director, composer…"
           autocomplete="off"
-          aria-label="Filter by director"
+          aria-label="Filter by person"
         />
         <ul v-if="people.length" class="suggestions">
           <li v-for="p in people" :key="p.id">
@@ -94,32 +110,78 @@ function clearAll() {
       </template>
     </div>
 
-    <select
-      :value="filters.year ?? ''"
-      aria-label="Filter by year"
-      @change="setNumber('year', $event)"
-    >
-      <option value="">Any year</option>
-      <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
-    </select>
+    <div class="field years">
+      <select
+        :value="filters.yearFrom ?? ''"
+        aria-label="From year"
+        @change="set({ yearFrom: selected($event) })"
+      >
+        <option value="">From any year</option>
+        <option v-for="y in years" :key="y" :value="y">From {{ y }}</option>
+      </select>
+      <select
+        :value="filters.yearTo ?? ''"
+        aria-label="To year"
+        @change="set({ yearTo: selected($event) })"
+      >
+        <option value="">To any year</option>
+        <option v-for="y in years" :key="y" :value="y">To {{ y }}</option>
+      </select>
+      <button
+        v-if="filters.yearFrom || filters.yearTo"
+        type="button"
+        class="plain small clear-one"
+        aria-label="Clear years"
+        @click="set({ yearFrom: null, yearTo: null })"
+      >
+        <AppIcon name="close" :size="12" />
+      </button>
+    </div>
+
+    <div class="field">
+      <select
+        :value="filters.genre ?? ''"
+        aria-label="Filter by genre"
+        @change="set({ genre: selected($event) })"
+      >
+        <option value="">Any genre</option>
+        <option v-for="g in genres" :key="g.id" :value="g.id">{{ g.name }}</option>
+      </select>
+      <button
+        v-if="filters.genre"
+        type="button"
+        class="plain small clear-one"
+        aria-label="Clear genre"
+        @click="set({ genre: null })"
+      >
+        <AppIcon name="close" :size="12" />
+      </button>
+    </div>
 
     <select
-      :value="filters.genre ?? ''"
-      aria-label="Filter by genre"
-      @change="setNumber('genre', $event)"
+      v-if="active"
+      :value="filters.sort"
+      aria-label="Order films by"
+      @change="set({ sort: ($event.target as HTMLSelectElement).value as Sort })"
     >
-      <option value="">Any genre</option>
-      <option v-for="g in genres" :key="g.id" :value="g.id">{{ g.name }}</option>
+      <option v-for="s in SORTS" :key="s.value" :value="s.value">{{ s.label }}</option>
     </select>
 
-    <button
-      v-if="filters.director || filters.year || filters.genre"
-      type="button"
-      class="plain small clear"
-      @click="clearAll"
-    >
-      <AppIcon name="close" :size="12" /> Clear filters
-    </button>
+    <div class="actions">
+      <button
+        type="button"
+        class="small"
+        :class="filters.hideSeen ? 'mustard' : 'plain'"
+        :aria-pressed="filters.hideSeen"
+        @click="set({ hideSeen: !filters.hideSeen })"
+      >
+        <AppIcon :name="filters.hideSeen ? 'eye-off' : 'eye'" :size="14" />
+        {{ filters.hideSeen ? 'Hiding films in my library' : 'Hide films in my library' }}
+      </button>
+      <button v-if="active" type="button" class="plain small" @click="clearAll">
+        <AppIcon name="close" :size="12" /> Clear filters
+      </button>
+    </div>
   </div>
 </template>
 
@@ -131,13 +193,34 @@ function clearAll() {
   margin-top: 0.75rem;
 }
 
-.director {
-  position: relative;
+.person,
+.years,
+.actions {
   grid-column: 1 / -1;
 }
 
-.director input {
+.person {
+  position: relative;
+}
+
+.person input {
   width: 100%;
+}
+
+.field {
+  display: flex;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.field select {
+  flex: 1;
+  min-width: 0;
+}
+
+.clear-one {
+  flex: none;
+  padding-inline: 0.6rem;
 }
 
 select {
@@ -205,19 +288,20 @@ select {
   color: var(--muted);
 }
 
-.clear {
-  grid-column: 1 / -1;
-  justify-self: start;
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 @media (min-width: 900px) {
   .filters {
-    grid-template-columns: 2fr 1fr 1fr auto;
+    grid-template-columns: 2fr 2fr 1fr 1fr;
     align-items: center;
   }
 
-  .director,
-  .clear {
+  .person,
+  .years {
     grid-column: auto;
   }
 }

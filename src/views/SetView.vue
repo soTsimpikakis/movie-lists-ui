@@ -49,7 +49,7 @@ function tap(film: SetFilm) {
     if (!next.delete(film.tmdb_id)) next.add(film.tmdb_id)
     ticked.value = next
   } else {
-    picked.value = { ...film, watch_count: 0 }
+    picked.value = { ...film, watch_count: 0, vote_average: 0, vote_count: 0 }
   }
 }
 

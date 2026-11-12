@@ -20,3 +20,15 @@ export function ordinal(n: number): string {
 export function posterUrl(path: string | null, size: 'w92' | 'w185' | 'w342' = 'w185') {
   return path ? `https://image.tmdb.org/t/p/${size}${path}` : null
 }
+
+/** TMDB rating with how many people rated it: (8.4, 37210) -> "★ 8.4 · 37k". */
+export function ratingNote(average: number, count: number): string | undefined {
+  if (!count) return undefined
+  const votes =
+    count >= 10_000
+      ? `${Math.round(count / 1000)}k`
+      : count >= 1000
+        ? `${(count / 1000).toFixed(1).replace(/\.0$/, '')}k`
+        : String(count)
+  return `★ ${average.toFixed(1)} · ${votes}`
+}

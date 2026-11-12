@@ -6,12 +6,14 @@ import { api } from '@/api/client'
 import type { BrowsePage, Checklist, SearchResult } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
 import BulkProgress from '@/components/BulkProgress.vue'
-import FilmFilters, { type Filters } from '@/components/FilmFilters.vue'
+import FilmFilters from '@/components/FilmFilters.vue'
 import PosterTile from '@/components/PosterTile.vue'
 import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 import { useFilmSearch } from '@/composables/useFilmSearch'
 import { saveSeen } from '@/lib/bulk'
+import { browseParams, emptyFilters, type Filters, isFiltering } from '@/lib/filters'
+import { ratingNote } from '@/lib/format'
 import { useRewardsStore } from '@/stores/rewards'
 
 // "Movies I've seen" (design.md §5.3): onboarding right after the invite, and "Update my
@@ -32,28 +34,38 @@ onMounted(async () => {
   checklist.value = await api<Checklist>('/checklist')
 })
 
-// Director / year / genre filters, for ticking off whole filmographies or years at once.
-const filters = ref<Filters>({ director: null, year: null, genre: null })
-const filtering = computed(() =>
-  Boolean(filters.value.director || filters.value.year || filters.value.genre),
-)
+// Person / years / genre filters, for ticking off whole filmographies or decades at once.
+const filters = ref<Filters>(emptyFilters())
+const filtering = computed(() => isFiltering(filters.value))
 const browsed = ref<SearchResult[]>([])
 const browsePage = ref<BrowsePage | null>(null)
 const browsing = ref(false)
 let browseRequest = 0
 
+// With library films hidden, a page of TMDB results can come back short or even empty, so
+// a load keeps fetching (a few pages at most) until it has something worth showing.
+const TOP_UP_TO = 12
+const TOP_UP_PAGES = 5
+
 async function browse(page = 1) {
-  const { director, year, genre } = filters.value
-  const params = new URLSearchParams({ page: String(page) })
-  if (director) params.set('director', String(director.id))
-  if (year) params.set('year', String(year))
-  if (genre) params.set('genre', String(genre))
   const mine = ++browseRequest
   browsing.value = true
   try {
-    const result = await api<BrowsePage>(`/films/browse?${params}`)
-    if (mine !== browseRequest) return
-    browsed.value = page === 1 ? result.results : [...browsed.value, ...result.results]
+    const found: SearchResult[] = []
+    let result: BrowsePage
+    let fetched = 0
+    do {
+      result = await api<BrowsePage>(`/films/browse?${browseParams(filters.value, page + fetched)}`)
+      if (mine !== browseRequest) return
+      found.push(...result.results)
+      fetched++
+    } while (
+      filters.value.hideSeen &&
+      found.length < TOP_UP_TO &&
+      result.page < result.total_pages &&
+      fetched < TOP_UP_PAGES
+    )
+    browsed.value = page === 1 ? found : [...browsed.value, ...found]
     browsePage.value = result
   } finally {
     if (mine === browseRequest) browsing.value = false
@@ -69,6 +81,16 @@ watch(
   },
   { deep: true },
 )
+
+// Search results and the starting lists are filtered here; browsed films come filtered.
+const hidden = (seen: boolean) => filters.value.hideSeen && seen
+const shownResults = computed(() => results.value.filter((f) => !hidden(f.watch_count > 0)))
+const shownSets = computed(() =>
+  (checklist.value?.sets ?? [])
+    .map((s) => ({ ...s, films: s.films.filter((f) => !hidden(f.seen)) }))
+    .filter((s) => s.films.length),
+)
+const shownPopular = computed(() => (checklist.value?.popular ?? []).filter((f) => !hidden(f.seen)))
 
 const tickable = computed(() => browsed.value.filter((f) => f.watch_count === 0))
 const allTicked = computed(
@@ -129,7 +151,8 @@ async function save() {
       </RouterLink>
       <h1>Movies I've seen</h1>
       <p class="muted">
-        Tick films you watched before Movie Club. Films you've already logged are ticked.
+        Tick films you watched before Movie Club. Films you've already logged are greyed out, or
+        hide them to see only what's left.
       </p>
     </template>
 
@@ -146,12 +169,14 @@ async function save() {
       <p v-if="search.error.value" class="error">{{ search.error.value }}</p>
       <p v-else-if="search.searching.value && !results.length" class="muted">Searching…</p>
       <p v-else-if="!results.length" class="muted">No films found.</p>
+      <p v-else-if="!shownResults.length" class="muted">They're all in your library already.</p>
       <ul class="film-grid">
-        <li v-for="film in results" :key="film.tmdb_id">
+        <li v-for="film in shownResults" :key="film.tmdb_id">
           <PosterTile
             :title="film.title"
             :year="film.year"
             :poster-path="film.poster_path"
+            :note="ratingNote(film.vote_average, film.vote_count)"
             :checked="film.watch_count > 0 || ticked.has(film.tmdb_id)"
             :disabled="film.watch_count > 0"
             @click="toggle(film.tmdb_id)"
@@ -183,6 +208,7 @@ async function save() {
             :title="film.title"
             :year="film.year"
             :poster-path="film.poster_path"
+            :note="ratingNote(film.vote_average, film.vote_count)"
             :checked="film.watch_count > 0 || ticked.has(film.tmdb_id)"
             :disabled="film.watch_count > 0"
             @click="toggle(film.tmdb_id)"
@@ -201,7 +227,7 @@ async function save() {
 
     <p v-if="checklist === null" class="muted">Loading…</p>
     <template v-else-if="!search.active.value && !filtering">
-      <section v-for="s in checklist.sets" :key="s.id">
+      <section v-for="s in shownSets" :key="s.id">
         <h2>{{ s.title }}</h2>
         <ul class="film-grid">
           <li v-for="film in s.films" :key="film.tmdb_id">
@@ -217,10 +243,10 @@ async function save() {
         </ul>
       </section>
 
-      <section v-if="checklist.popular.length">
+      <section v-if="shownPopular.length">
         <h2>Popular films</h2>
         <ul class="film-grid">
-          <li v-for="film in checklist.popular" :key="film.tmdb_id">
+          <li v-for="film in shownPopular" :key="film.tmdb_id">
             <PosterTile
               :title="film.title"
               :year="film.year"

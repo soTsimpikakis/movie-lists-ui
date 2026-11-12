@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDate, ordinal, posterUrl, todayIso } from '@/lib/format'
+import { formatDate, ordinal, posterUrl, ratingNote, todayIso } from '@/lib/format'
 
 describe('format', () => {
   it('shows dates as DD-MM-YYYY', () => {
@@ -28,5 +28,13 @@ describe('format', () => {
   it('builds TMDB poster URLs', () => {
     expect(posterUrl('/abc.jpg', 'w92')).toBe('https://image.tmdb.org/t/p/w92/abc.jpg')
     expect(posterUrl(null)).toBeNull()
+  })
+
+  it('shows a rating with a short vote count', () => {
+    expect(ratingNote(8.36, 37210)).toBe('★ 8.4 · 37k')
+    expect(ratingNote(7, 1000)).toBe('★ 7.0 · 1k')
+    expect(ratingNote(6.5, 1250)).toBe('★ 6.5 · 1.3k')
+    expect(ratingNote(9, 12)).toBe('★ 9.0 · 12')
+    expect(ratingNote(0, 0)).toBeUndefined()
   })
 })

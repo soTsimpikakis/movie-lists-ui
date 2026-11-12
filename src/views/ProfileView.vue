@@ -7,8 +7,8 @@ import AppIcon from '@/components/AppIcon.vue'
 import { USERNAME_PATTERN, userTag } from '@/lib/username'
 import { useAuthStore } from '@/stores/auth'
 
-// Profile (design.md §12, Phase 6A): name, username, password, log out. The style picker
-// from the idea bank will join it later.
+// Profile (design.md §12, Phase 6A): name, username, settings, password, log out. The style
+// picker from the idea bank will join it later.
 const auth = useAuthStore()
 const router = useRouter()
 
@@ -42,6 +42,21 @@ async function saveProfile() {
     profileError.value = e instanceof Error ? e.message : String(e)
   } finally {
     savingProfile.value = false
+  }
+}
+
+const settingsError = ref('')
+const savingSettings = ref(false)
+
+async function toggleCelebrations() {
+  settingsError.value = ''
+  savingSettings.value = true
+  try {
+    await auth.updateProfile({ celebrations: !auth.user?.celebrations })
+  } catch (e) {
+    settingsError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    savingSettings.value = false
   }
 }
 
@@ -109,6 +124,33 @@ async function logout() {
         <AppIcon name="check" :size="14" /> Save
       </button>
     </form>
+
+    <section class="card stack" aria-labelledby="settings-label">
+      <span id="settings-label" class="label">Settings</span>
+      <div class="setting">
+        <div>
+          <strong id="celebrations-label">Celebration cards</strong>
+          <p class="hint">
+            Set progress, levels and stamps pop up after you log films. Turned off, you still earn
+            them all; they just wait quietly on your Journey.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          class="switch"
+          :class="{ on: auth.user?.celebrations }"
+          :aria-checked="auth.user?.celebrations ?? true"
+          aria-labelledby="celebrations-label"
+          :disabled="savingSettings"
+          @click="toggleCelebrations"
+        >
+          <span class="knob" aria-hidden="true" />
+          {{ auth.user?.celebrations ? 'On' : 'Off' }}
+        </button>
+      </div>
+      <p v-if="settingsError" class="error">{{ settingsError }}</p>
+    </section>
 
     <form class="card stack" @submit.prevent="changePassword">
       <span class="label">Password</span>
@@ -200,6 +242,45 @@ async function logout() {
 
 .card button {
   align-self: flex-start;
+}
+
+.setting {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.setting .hint {
+  margin: 0.25rem 0 0;
+}
+
+/* On/off pill with a sliding knob; red when on, like the ticket stubs. */
+.card .switch {
+  flex: none;
+  align-self: center;
+  min-width: 5.2rem;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem 0.4rem 0.4rem;
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--fg);
+}
+
+.card .switch.on {
+  flex-direction: row-reverse;
+  padding: 0.4rem 0.4rem 0.4rem 0.75rem;
+  background: var(--red);
+  color: var(--on-red);
+}
+
+.knob {
+  width: 1.3rem;
+  height: 1.3rem;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg);
 }
 
 .logout {
