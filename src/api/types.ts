@@ -204,4 +204,7 @@ export interface BrowsePage {
   page: number
   total_pages: number
   total: number
+  /** With a person: the role their films are listed in, and the roles to switch to. */
+  role: string | null
+  roles: string[]
 }

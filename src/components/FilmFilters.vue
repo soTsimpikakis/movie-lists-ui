@@ -4,12 +4,22 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '@/api/client'
 import type { Genre, Person } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
-import { emptyFilters, type Filters, isFiltering, SORTS, type Sort } from '@/lib/filters'
+import {
+  emptyFilters,
+  type Filters,
+  isFiltering,
+  roleLabel,
+  ROLES,
+  SORTS,
+  type Sort,
+} from '@/lib/filters'
 
 // Person / years / genre filters for finding films to tick off in bulk, plus the order and
 // whether to hide films already in the library. The person is picked from a people search
 // (actors, directors, composers...), so namesakes can be told apart by what they're known for.
 const filters = defineModel<Filters>({ required: true })
+// The person's roles to switch between, and the one their films are listed in (from the API).
+const props = defineProps<{ roles?: string[]; role?: string | null }>()
 
 const thisYear = new Date().getFullYear()
 const years = Array.from({ length: thisYear - 1919 }, (_, i) => thisYear - i)
@@ -17,20 +27,11 @@ const genres = ref<Genre[]>([])
 const personQuery = ref('')
 const people = ref<Person[]>([])
 const active = computed(() => isFiltering(filters.value))
+const currentRole = computed(
+  () => filters.value.role ?? props.role ?? filters.value.person?.department ?? 'Acting',
+)
 let debounce: ReturnType<typeof setTimeout> | undefined
 let request = 0
-
-// What the person's films are, going by the role TMDB knows them for (the API lists them
-// in that role only).
-const ROLES: Record<string, string> = {
-  Acting: 'With',
-  Directing: 'Dir.',
-  Sound: 'Music',
-  Writing: 'Writer',
-  Camera: 'Camera',
-  Editing: 'Editor',
-  Production: 'Prod.',
-}
 
 onMounted(async () => {
   genres.value = await api<Genre[]>('/genres')
@@ -50,7 +51,7 @@ watch(personQuery, (q) => {
 })
 
 function pick(person: Person) {
-  filters.value = { ...filters.value, person }
+  filters.value = { ...filters.value, person, role: null }
   personQuery.value = ''
   people.value = []
 }
@@ -83,13 +84,31 @@ function clearAll() {
         type="button"
         class="chip small"
         :aria-label="`Remove person filter ${filters.person.name}`"
-        @click="set({ person: null })"
+        @click="set({ person: null, role: null })"
       >
-        <span class="chip-label">{{ ROLES[filters.person.department ?? ''] ?? 'With' }}</span>
+        <span class="chip-label">{{ ROLES[currentRole]?.chip ?? roleLabel(currentRole) }}</span>
         {{ filters.person.name }}
         <AppIcon name="close" :size="12" />
       </button>
-      <template v-else>
+      <div
+        v-if="filters.person && props.roles && props.roles.length > 1"
+        class="roles"
+        role="group"
+        :aria-label="`${filters.person.name}'s films as`"
+      >
+        <button
+          v-for="r in props.roles"
+          :key="r"
+          type="button"
+          class="small"
+          :class="r === currentRole ? 'mustard' : 'plain'"
+          :aria-pressed="r === currentRole"
+          @click="set({ role: r })"
+        >
+          {{ roleLabel(r) }}
+        </button>
+      </div>
+      <template v-if="!filters.person">
         <input
           v-model="personQuery"
           type="search"
@@ -203,8 +222,26 @@ function clearAll() {
   position: relative;
 }
 
+.person {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .person input {
   width: 100%;
+}
+
+.roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.roles button {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
 }
 
 .field {
@@ -303,6 +340,11 @@ select {
   .person,
   .years {
     grid-column: auto;
+  }
+
+  /* With role buttons, the person gets the whole row so they fit on one line. */
+  .person:has(.roles) {
+    grid-column: 1 / -1;
   }
 }
 </style>

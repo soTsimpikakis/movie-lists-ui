@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import { api } from '@/api/client'
 import type { BrowsePage, Checklist, SearchResult } from '@/api/types'
@@ -17,9 +17,9 @@ import { ratingNote } from '@/lib/format'
 import { useRewardsStore } from '@/stores/rewards'
 
 // "Movies I've seen" (design.md §5.3): onboarding right after the invite, and "Update my
-// library" any time later. Ticked films become undated "before Movie Club" watches.
+// library" any time later. Ticked films become undated "before Movie Club" watches. Saving
+// keeps you on the page, filters and all, so long sessions can be saved as they go.
 const route = useRoute()
-const router = useRouter()
 const rewards = useRewardsStore()
 const welcome = computed(() => route.query.welcome === '1')
 
@@ -30,9 +30,21 @@ const error = ref('')
 const search = useFilmSearch()
 const { query, results } = search
 
+// The "Top" button, for getting back to the filters from far down a long list.
+const scrolledDown = ref(false)
+const onScroll = () => (scrolledDown.value = window.scrollY > 600)
+
 onMounted(async () => {
+  window.addEventListener('scroll', onScroll, { passive: true })
   checklist.value = await api<Checklist>('/checklist')
 })
+
+onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
+
+function toTop() {
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  window.scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' })
+}
 
 // Person / years / genre filters, for ticking off whole filmographies or decades at once.
 const filters = ref<Filters>(emptyFilters())
@@ -40,12 +52,14 @@ const filtering = computed(() => isFiltering(filters.value))
 const browsed = ref<SearchResult[]>([])
 const browsePage = ref<BrowsePage | null>(null)
 const browsing = ref(false)
+// The person's roles, kept while switching between them so the buttons don't flicker.
+const roles = ref<{ roles: string[]; role: string | null }>({ roles: [], role: null })
 let browseRequest = 0
 
-// With library films hidden, a page of TMDB results can come back short or even empty, so
-// a load keeps fetching (a few pages at most) until it has something worth showing.
-const TOP_UP_TO = 12
-const TOP_UP_PAGES = 5
+// With library films hidden, a page can be mostly films already seen, so a load keeps
+// fetching (a few pages at most) until it has something worth showing.
+const TOP_UP_TO = 30
+const TOP_UP_PAGES = 3
 
 async function browse(page = 1) {
   const mine = ++browseRequest
@@ -61,29 +75,34 @@ async function browse(page = 1) {
       fetched++
     } while (
       filters.value.hideSeen &&
-      found.length < TOP_UP_TO &&
+      found.filter((f) => f.watch_count === 0).length < TOP_UP_TO &&
       result.page < result.total_pages &&
       fetched < TOP_UP_PAGES
     )
     browsed.value = page === 1 ? found : [...browsed.value, ...found]
     browsePage.value = result
+    roles.value = { roles: result.roles, role: result.role }
   } finally {
     if (mine === browseRequest) browsing.value = false
   }
 }
 
+// Hiding seen films happens below, so toggling it doesn't reload anything.
 watch(
-  filters,
+  () => (filtering.value ? browseParams(filters.value, 1).toString() : ''),
   () => {
     browsed.value = []
     browsePage.value = null
     if (filtering.value) browse()
   },
-  { deep: true },
+)
+watch(
+  () => filters.value.person?.id,
+  () => (roles.value = { roles: [], role: null }),
 )
 
-// Search results and the starting lists are filtered here; browsed films come filtered.
 const hidden = (seen: boolean) => filters.value.hideSeen && seen
+const shownBrowsed = computed(() => browsed.value.filter((f) => !hidden(f.watch_count > 0)))
 const shownResults = computed(() => results.value.filter((f) => !hidden(f.watch_count > 0)))
 const shownSets = computed(() =>
   (checklist.value?.sets ?? [])
@@ -116,20 +135,51 @@ function toggle(tmdbId: number) {
 // Big saves show the ticket-box loading screen; small ones are over before it would matter.
 const BIG_SAVE = 20
 const progress = ref<{ done: number; total: number } | null>(null)
+const savedAny = ref(false)
+const toast = ref('')
+
+function flash(message: string) {
+  toast.value = message
+  setTimeout(() => (toast.value = ''), 2500)
+}
+
+/** Saved films turn into library films everywhere on the page (or vanish, when hiding). */
+function markSaved(ids: number[]) {
+  if (!ids.length) return
+  const saved = new Set(ids)
+  const inLibrary = <T extends { tmdb_id: number; watch_count: number }>(f: T): T =>
+    saved.has(f.tmdb_id) && !f.watch_count ? { ...f, watch_count: 1 } : f
+  browsed.value = browsed.value.map(inLibrary)
+  results.value = results.value.map(inLibrary)
+  if (checklist.value) {
+    const seen = <T extends { tmdb_id: number; seen: boolean }>(f: T): T =>
+      saved.has(f.tmdb_id) ? { ...f, seen: true } : f
+    checklist.value = {
+      sets: checklist.value.sets.map((s) => ({ ...s, films: s.films.map(seen) })),
+      popular: checklist.value.popular.map(seen),
+    }
+  }
+  ticked.value = new Set([...ticked.value].filter((id) => !saved.has(id)))
+  savedAny.value = true
+}
 
 async function save() {
   busy.value = true
   error.value = ''
   const ids = [...ticked.value]
+  // Batches that made it are kept even if a later one fails.
+  let done = 0
   try {
-    const { events } = await saveSeen(ids, (done, total) => {
-      if (total > BIG_SAVE) progress.value = { done, total }
+    const { events } = await saveSeen(ids, (saved, total) => {
+      done = saved
+      if (total > BIG_SAVE) progress.value = { done: saved, total }
     })
     rewards.push(events)
-    await router.replace({ name: 'home' })
+    flash(`Saved ${ids.length} film${ids.length === 1 ? '' : 's'} to your library`)
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
+    markSaved(ids.slice(0, done))
     busy.value = false
     progress.value = null
   }
@@ -163,7 +213,7 @@ async function save() {
       label="Search for a film you've seen"
     />
 
-    <FilmFilters v-model="filters" />
+    <FilmFilters v-model="filters" :roles="roles.roles" :role="roles.role" />
 
     <section v-if="search.active.value" aria-live="polite">
       <p v-if="search.error.value" class="error">{{ search.error.value }}</p>
@@ -176,7 +226,7 @@ async function save() {
             :title="film.title"
             :year="film.year"
             :poster-path="film.poster_path"
-            :note="ratingNote(film.vote_average, film.vote_count)"
+            :rating="ratingNote(film.vote_average, film.vote_count)"
             :checked="film.watch_count > 0 || ticked.has(film.tmdb_id)"
             :disabled="film.watch_count > 0"
             @click="toggle(film.tmdb_id)"
@@ -188,7 +238,8 @@ async function save() {
     <section v-else-if="filtering" aria-live="polite">
       <div class="results-heading">
         <h2>
-          Matching films <span class="count" v-if="browsePage">· {{ browsePage.total }}</span>
+          Matching films
+          <span v-if="browsePage && !filters.hideSeen" class="count">· {{ browsePage.total }}</span>
         </h2>
         <button
           v-if="tickable.length"
@@ -202,13 +253,16 @@ async function save() {
       </div>
       <p v-if="browsing && !browsed.length" class="muted">Looking…</p>
       <p v-else-if="browsePage && !browsed.length" class="muted">No films match these filters.</p>
+      <p v-else-if="browsePage && !shownBrowsed.length" class="muted">
+        Everything here is in your library already.
+      </p>
       <ul class="film-grid">
-        <li v-for="film in browsed" :key="film.tmdb_id">
+        <li v-for="film in shownBrowsed" :key="film.tmdb_id">
           <PosterTile
             :title="film.title"
             :year="film.year"
             :poster-path="film.poster_path"
-            :note="ratingNote(film.vote_average, film.vote_count)"
+            :rating="ratingNote(film.vote_average, film.vote_count)"
             :checked="film.watch_count > 0 || ticked.has(film.tmdb_id)"
             :disabled="film.watch_count > 0"
             @click="toggle(film.tmdb_id)"
@@ -264,9 +318,15 @@ async function save() {
 
     <BulkProgress v-if="progress" :done="progress.done" :total="progress.total" />
 
+    <p v-if="toast" class="toast" role="status">{{ toast }}</p>
+
     <div class="action-bar">
+      <button v-if="scrolledDown" type="button" class="plain to-top" @click="toTop">
+        <AppIcon name="chevron-up" :size="14" /> Top
+      </button>
       <RouterLink v-if="welcome" :to="{ name: 'home' }" class="button-link plain skip">
-        Skip for now
+        <template v-if="savedAny"><AppIcon name="check" :size="14" /> Done</template>
+        <template v-else>Skip for now</template>
       </RouterLink>
       <p v-if="error" class="error">{{ error }}</p>
       <button :disabled="!ticked.size || busy" @click="save">
@@ -327,7 +387,13 @@ h2 {
   flex-basis: 100%;
 }
 
-.skip {
+/* Above the action bar, so it doesn't cover the Save button. */
+.toast {
+  bottom: calc(6rem + env(safe-area-inset-bottom));
+}
+
+.skip,
+.to-top {
   white-space: nowrap;
 }
 </style>

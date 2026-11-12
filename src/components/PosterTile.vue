@@ -16,6 +16,8 @@ const props = defineProps<{
   checked?: boolean
   disabled?: boolean
   note?: string
+  /** TMDB rating, e.g. "★ 8.4 · 37k"; on its own line so it never wraps mid-way. */
+  rating?: string
 }>()
 
 const picked = computed(() => props.checked && !props.disabled)
@@ -44,6 +46,7 @@ const owned = computed(() => props.checked && props.disabled)
     <span class="meta"
       >{{ year ?? '' }}<template v-if="note"> · {{ note }}</template></span
     >
+    <span v-if="rating" class="meta">{{ rating }}</span>
   </button>
 </template>
 
@@ -175,6 +178,7 @@ const owned = computed(() => props.checked && props.disabled)
   font-size: 0.7rem;
   font-weight: 500;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {
