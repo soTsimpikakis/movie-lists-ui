@@ -17,7 +17,7 @@ const props = defineProps<{
   /** Shows a tick over the poster. */
   checked?: boolean
   disabled?: boolean
-  /** A ribbon across the poster's top corner, e.g. "Winner". */
+  /** A ribbon on the ticket's top band, e.g. "Winner". */
   badge?: string
 }>()
 
@@ -34,13 +34,14 @@ const name = computed(() => [props.title, props.year, props.badge].filter(Boolea
     :aria-label="name"
     :title="name"
   >
-    <span class="band" />
-    <span class="poster-wrap">
-      <PosterImage :path="posterPath" :title="title" />
-      <span v-if="checked" class="tick"><AppIcon name="check" :size="16" /></span>
+    <span class="band">
       <span v-if="badge" class="badge" aria-hidden="true">
         <AppIcon name="trophy" :size="11" /> {{ badge }}
       </span>
+    </span>
+    <span class="poster-wrap">
+      <PosterImage :path="posterPath" :title="title" />
+      <span v-if="checked" class="tick"><AppIcon name="check" :size="16" /></span>
     </span>
     <span class="seats" aria-hidden="true">
       <span class="seat">
@@ -106,6 +107,11 @@ const name = computed(() => [props.title, props.year, props.badge].filter(Boolea
 .band {
   height: 2.25rem;
   flex: none;
+  /* Room for a badge under the punched notch, clear of the poster. */
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0.25rem;
   background: var(--red);
   border-bottom: 2px solid var(--line);
   border-radius: calc(var(--radius) - 2px) calc(var(--radius) - 2px) 0 0;
@@ -182,12 +188,9 @@ const name = computed(() => [props.title, props.year, props.badge].filter(Boolea
   outline-offset: 1px;
 }
 
-/* Gold ribbon, so the winner stands out among greyed nominees. */
+/* Gold ribbon on the band, so the winner stands out among greyed nominees without
+   covering the poster. */
 .badge {
-  position: absolute;
-  z-index: 1;
-  left: 0.3rem;
-  bottom: 0.3rem;
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
