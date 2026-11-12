@@ -16,6 +16,8 @@ export interface Filters {
   yearFrom: number | null
   yearTo: number | null
   genre: number | null
+  /** A keyword genre (Musical); set instead of `genre`, never with it. */
+  keyword: number | null
   sort: Sort
   /** Leave out films already in the library. Done in the app, so saving films mid-browse
    * can't shift the pages still to load. */
@@ -29,6 +31,7 @@ export function emptyFilters(): Filters {
     yearFrom: null,
     yearTo: null,
     genre: null,
+    keyword: null,
     sort: 'popular',
     hideSeen: false,
   }
@@ -51,7 +54,7 @@ export function roleLabel(role: string): string {
 
 /** Sort and hide-seen are preferences, not filters: on their own they don't browse. */
 export function isFiltering(f: Filters): boolean {
-  return Boolean(f.person || f.yearFrom || f.yearTo || f.genre)
+  return Boolean(f.person || f.yearFrom || f.yearTo || f.genre || f.keyword)
 }
 
 export function browseParams(f: Filters, page: number): URLSearchParams {
@@ -61,5 +64,6 @@ export function browseParams(f: Filters, page: number): URLSearchParams {
   if (f.yearFrom) params.set('year_from', String(f.yearFrom))
   if (f.yearTo) params.set('year_to', String(f.yearTo))
   if (f.genre) params.set('genre', String(f.genre))
+  if (f.keyword) params.set('keyword', String(f.keyword))
   return params
 }

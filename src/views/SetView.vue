@@ -2,14 +2,16 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { api, post } from '@/api/client'
-import type { SearchResult, SeenResult, SetDetail, SetFilm } from '@/api/types'
+import { api } from '@/api/client'
+import type { SearchResult, SetDetail, SetFilm } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import BulkProgress from '@/components/BulkProgress.vue'
 import FilmTile from '@/components/FilmTile.vue'
 import LogSheet from '@/components/LogSheet.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
+import { saveSeen } from '@/lib/bulk'
 import { useRewardsStore } from '@/stores/rewards'
 
 const route = useRoute()
@@ -53,16 +55,30 @@ function tap(film: SetFilm) {
   }
 }
 
+const unwatched = computed(() => set.value?.films.filter((f) => !f.watched) ?? [])
+const allTicked = computed(
+  () => unwatched.value.length > 0 && unwatched.value.every((f) => ticked.value.has(f.tmdb_id)),
+)
+
+/** Big sets (every Best Picture winner) are a lot of tapping: tick or untick them all. */
+function tickAll() {
+  ticked.value = allTicked.value ? new Set() : new Set(unwatched.value.map((f) => f.tmdb_id))
+}
+
 function cancelSelecting() {
   selecting.value = false
   ticked.value = new Set()
 }
 
+// Big saves show the ticket-box loading screen, as on "Movies I've seen".
+const BIG_SAVE = 20
+const progress = ref<{ done: number; total: number } | null>(null)
+
 async function saveTicked() {
   busy.value = true
   try {
-    const { added, events } = await post<SeenResult>('/watches/seen', {
-      tmdb_ids: [...ticked.value],
+    const { added, events } = await saveSeen([...ticked.value], (done, total) => {
+      if (total > BIG_SAVE) progress.value = { done, total }
     })
     rewards.push(events)
     cancelSelecting()
@@ -70,6 +86,7 @@ async function saveTicked() {
     await load()
   } finally {
     busy.value = false
+    progress.value = null
   }
 }
 
@@ -131,6 +148,7 @@ async function onLogged() {
             :muted="!film.watched && !ticked.has(film.tmdb_id)"
             :checked="ticked.has(film.tmdb_id)"
             :disabled="film.watched"
+            :badge="film.highlight ? 'Winner' : undefined"
             @click="tap(film)"
           />
         </li>
@@ -140,6 +158,10 @@ async function onLogged() {
         <button class="plain" @click="cancelSelecting">
           <AppIcon name="close" :size="14" /> Cancel
         </button>
+        <button class="mustard tick-all" :aria-pressed="allTicked" @click="tickAll">
+          <AppIcon :name="allTicked ? 'close' : 'check'" :size="14" />
+          {{ allTicked ? 'Untick all' : 'Tick all' }}
+        </button>
         <button :disabled="!ticked.size || busy" @click="saveTicked">
           <AppIcon name="check" :size="14" /> Save {{ ticked.size || '' }} as seen
         </button>
@@ -147,6 +169,8 @@ async function onLogged() {
     </template>
 
     <TmdbCredit />
+
+    <BulkProgress v-if="progress" :done="progress.done" :total="progress.total" />
 
     <LogSheet v-if="picked" :film="picked" @logged="onLogged" @close="picked = null" />
     <p v-if="toast" class="toast" role="status">{{ toast }}</p>
@@ -202,6 +226,10 @@ async function onLogged() {
   justify-content: space-between;
   gap: 0.75rem;
   margin: 1rem 0;
+}
+
+.tick-all {
+  white-space: nowrap;
 }
 
 .ticket + .film-grid {

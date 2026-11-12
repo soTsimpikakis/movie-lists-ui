@@ -59,7 +59,7 @@ export interface SetSummary {
   id: number
   key: string
   title: string
-  kind: 'franchise' | 'director'
+  kind: 'franchise' | 'director' | 'awards'
   theme_key: string | null
   total: number
   watched: number
@@ -77,6 +77,8 @@ export interface SetFilm {
   genre: string | null
   watched: boolean
   watch_count: number
+  /** Singled out, e.g. the year's Best Picture winner. */
+  highlight: boolean
 }
 
 export interface SetDetail extends SetSummary {
@@ -144,6 +146,15 @@ export interface JourneySummaryEvent {
 /** What a new watch changed, shown as reward cards. */
 export type RewardEvent = SetRewardEvent | JourneyRewardEvent | JourneySummaryEvent
 
+/** Set progress past the first card, folded into one by the app (lib/rewardCards.ts). */
+export interface SetsSummaryEvent {
+  kind: 'sets_summary'
+  sets: Pick<SetRewardEvent, 'set_id' | 'title' | 'watched' | 'total'>[]
+}
+
+/** What the reward cards show: the API's events, with long runs of progress folded. */
+export type RewardCard = RewardEvent | SetsSummaryEvent
+
 export interface JourneyLevel {
   subject: string
   count: number
@@ -196,6 +207,8 @@ export interface Person {
 export interface Genre {
   id: number
   name: string
+  /** A TMDB keyword standing in for a genre TMDB lacks (Musical); filtered as `keyword`. */
+  keyword: boolean
 }
 
 /** A page of films matching director / year / genre filters. */

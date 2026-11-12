@@ -32,8 +32,12 @@ const summary = computed(() => {
   const e = current.value
   return e?.kind === 'journey_summary' ? e : null
 })
+const setsSummary = computed(() => {
+  const e = current.value
+  return e?.kind === 'sets_summary' ? e : null
+})
 const icon = computed(() => {
-  if (current.value?.kind === 'set_progressed') return 'sparkle'
+  if (current.value?.kind === 'set_progressed' || setsSummary.value) return 'sparkle'
   if (stamp.value || summary.value) return 'globe'
   return 'trophy'
 })
@@ -86,6 +90,14 @@ function celebrate() {
               />
             </template>
             <LevelPips v-else-if="levelEvent" class="pips" :level="levelEvent.level" fresh />
+            <span v-else-if="setsSummary" class="chips">
+              <span v-for="s in setsSummary.sets.slice(0, 8)" :key="s.set_id" class="chip">
+                {{ s.title }} · {{ s.watched }}/{{ s.total }}
+              </span>
+              <span v-if="setsSummary.sets.length > 8" class="chip">
+                +{{ setsSummary.sets.length - 8 }} more
+              </span>
+            </span>
             <template v-else-if="summary">
               <span v-if="summary.stamps.length" class="mini-stamps">
                 <PassportStamp

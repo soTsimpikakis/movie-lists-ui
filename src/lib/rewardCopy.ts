@@ -1,8 +1,9 @@
 import type {
   JourneyRewardEvent,
   JourneySummaryEvent,
-  RewardEvent,
+  RewardCard,
   SetRewardEvent,
+  SetsSummaryEvent,
 } from '@/api/types'
 import { countryName, decadeLabel, films, LEVEL_NAMES } from '@/lib/journey'
 
@@ -12,6 +13,11 @@ const THEMED: Record<string, Partial<Record<SetRewardEvent['kind'], string>>> = 
     set_progressed: 'Stay on target.',
     set_completed: 'The Force is strong with this one.',
     set_polished: 'Balance restored to the Force.',
+  },
+  oscars: {
+    set_progressed: 'The envelope, please.',
+    set_completed: 'And the Oscar goes to… you.',
+    set_polished: 'Back on the red carpet.',
   },
 }
 
@@ -96,8 +102,19 @@ function summaryCopy(event: JourneySummaryEvent): Copy {
   }
 }
 
-export function rewardCopy(event: RewardEvent): Copy {
+function setsSummaryCopy(event: SetsSummaryEvent): Copy {
+  const n = event.sets.length
+  return {
+    label: 'Set progress',
+    headline: `${n} more sets moved`,
+    body: 'Find them all on the Sets tab.',
+  }
+}
+
+export function rewardCopy(event: RewardCard): Copy {
   switch (event.kind) {
+    case 'sets_summary':
+      return setsSummaryCopy(event)
     case 'journey_summary':
       return summaryCopy(event)
     case 'genre_level':

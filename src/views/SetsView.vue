@@ -1,12 +1,28 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import { api } from '@/api/client'
 import type { SetSummary } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
+import AppIcon from '@/components/AppIcon.vue'
+import SetPile from '@/components/SetPile.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
+import { groupSets } from '@/lib/sets'
 
 const sets = ref<SetSummary[] | null>(null)
+const groups = computed(() => groupSets(sets.value ?? []))
+const hasAwards = computed(
+  () => Boolean(groups.value.allWinners) || groups.value.ceremonies.length > 0,
+)
+
+// A hundred-odd ceremonies is a long scroll; the latest few show until asked for the rest.
+const RECENT_CEREMONIES = 12
+const allCeremonies = ref(false)
+const shownCeremonies = computed(() =>
+  allCeremonies.value
+    ? groups.value.ceremonies
+    : groups.value.ceremonies.slice(0, RECENT_CEREMONIES),
+)
 
 onMounted(async () => {
   sets.value = await api<SetSummary[]>('/sets')
@@ -19,37 +35,62 @@ onMounted(async () => {
 
     <p v-if="sets === null" class="muted">Loading…</p>
     <p v-else-if="!sets.length" class="muted">No sets yet.</p>
-    <ul v-else class="sets">
-      <li v-for="(s, i) in sets" :key="s.id">
-        <!-- A pile of tickets: the set on top, two more peeking out underneath. Alternate
-             piles lean the other way so the list looks hand-stacked. -->
-        <RouterLink
-          class="pile"
-          :class="[s.trophy, { flip: i % 2 }]"
-          :to="{ name: 'set', params: { id: s.id } }"
+    <template v-else>
+      <h2 v-if="hasAwards" class="group">Franchises &amp; directors</h2>
+      <ul class="sets">
+        <li v-for="(s, i) in groups.piles" :key="s.id">
+          <SetPile :set="s" :flip="i % 2 === 1" />
+        </li>
+      </ul>
+
+      <template v-if="hasAwards">
+        <h2 class="group">Best Picture</h2>
+        <ul v-if="groups.allWinners" class="sets">
+          <li><SetPile :set="groups.allWinners" /></li>
+        </ul>
+
+        <h3 v-if="groups.decades.length" class="sub">Winners by decade</h3>
+        <ul class="stubs decades">
+          <li v-for="t in groups.decades" :key="t.set.id">
+            <RouterLink
+              class="stub-tile"
+              :class="t.set.trophy"
+              :to="{ name: 'set', params: { id: t.set.id } }"
+            >
+              <span class="big">{{ t.big }}</span>
+              <span class="count">{{ t.set.watched }}/{{ t.set.total }}</span>
+              <TicketProgress class="bar" :watched="t.set.watched" :total="t.set.total" strip />
+            </RouterLink>
+          </li>
+        </ul>
+
+        <h3 v-if="groups.ceremonies.length" class="sub">Nominees by year</h3>
+        <ul class="stubs">
+          <li v-for="t in shownCeremonies" :key="t.set.id">
+            <RouterLink
+              class="stub-tile"
+              :class="t.set.trophy"
+              :to="{ name: 'set', params: { id: t.set.id } }"
+              :aria-label="`${t.set.title}: ${t.set.watched} of ${t.set.total} watched`"
+            >
+              <span class="big">{{ t.big }}</span>
+              <span class="small">{{ t.small }}</span>
+              <span class="count">{{ t.set.watched }}/{{ t.set.total }}</span>
+              <TicketProgress class="bar" :watched="t.set.watched" :total="t.set.total" strip />
+            </RouterLink>
+          </li>
+        </ul>
+        <button
+          v-if="groups.ceremonies.length > RECENT_CEREMONIES"
+          class="plain more"
+          :aria-expanded="allCeremonies"
+          @click="allCeremonies = !allCeremonies"
         >
-          <span class="under under-2" aria-hidden="true" />
-          <span class="under under-1" aria-hidden="true" />
-          <span class="ticket">
-            <span class="main">
-              <span class="set-title">{{ s.title }}</span>
-              <span v-if="s.kind === 'director'" class="kind">director</span>
-              <TicketProgress class="holes" :watched="s.watched" :total="s.total" />
-            </span>
-            <span class="stub">
-              <template v-if="s.watched === s.total">
-                <span class="big">✓</span>
-                <span class="small">all {{ s.total }}</span>
-              </template>
-              <template v-else>
-                <span class="big">{{ s.watched }}</span>
-                <span class="small">of {{ s.total }}</span>
-              </template>
-            </span>
-          </span>
-        </RouterLink>
-      </li>
-    </ul>
+          <AppIcon :name="allCeremonies ? 'chevron-up' : 'chevron-down'" />
+          {{ allCeremonies ? 'Show fewer' : `Show all ${groups.ceremonies.length} years` }}
+        </button>
+      </template>
+    </template>
   </main>
 </template>
 
@@ -63,161 +104,98 @@ onMounted(async () => {
   gap: 1.4rem;
 }
 
-.pile {
-  --stub: 4.2rem;
-  position: relative;
-  display: block;
-  color: var(--parchment-ink);
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-  /* The whole pile casts one shadow, following each ticket's notch. */
-  filter: var(--ticket-shadow);
-}
-
-/* Every ticket in the pile has the same punched notch, cut right through. */
-.under,
-.ticket {
-  mask: radial-gradient(circle at 100% 50%, #0000 0.75rem, #000 calc(0.75rem + 0.5px));
-}
-
-/* The tickets underneath: same paper and red end, tilted and nudged out of line. */
-.under {
-  position: absolute;
-  inset: 0;
-  border: 2px solid var(--ticket-line);
-  border-radius: 0.6rem;
-  /* A faint dark wash stands in for being further down the pile. */
-  background:
-    linear-gradient(rgb(60 40 20 / var(--shade)), rgb(60 40 20 / var(--shade))),
-    linear-gradient(to left, var(--red) var(--stub), transparent var(--stub)),
-    var(--parchment-paper);
-}
-
-.under-1 {
-  --shade: 0.07;
-  transform: translate(3px, 5px) rotate(1.6deg);
-}
-
-.under-2 {
-  --shade: 0.14;
-  transform: translate(-4px, 8px) rotate(-2.2deg);
-}
-
-.flip .under-1 {
-  transform: translate(-3px, 5px) rotate(-1.4deg);
-}
-
-.flip .under-2 {
-  transform: translate(4px, 8px) rotate(2.4deg);
-}
-
-.ticket {
-  position: relative;
-  display: flex;
-  min-height: 5rem;
-  border: 2px solid var(--ticket-line);
-  border-radius: 0.6rem;
-  background: var(--parchment-paper);
-  transition: transform 0.08s;
-}
-
-.pile:active .ticket {
-  transform: translateY(2px);
-}
-
-.main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.3rem 0.5rem;
-  padding: 0.7rem 0.85rem 0.8rem;
-}
-
-.set-title {
-  font-family: var(--ticket-title);
+.group {
+  margin: 1.75rem 0 1rem;
   font-size: 1.1rem;
-  font-weight: 700;
-  line-height: 1.15;
 }
 
-.kind {
-  padding: 0.05rem 0.4rem;
-  border: 1.5px solid currentColor;
-  border-radius: 0.3rem;
-  font-family: var(--ticket-type);
-  font-size: 0.65rem;
+.group:first-of-type {
+  margin-top: 0.5rem;
+}
+
+.sub {
+  margin: 1.75rem 0 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  opacity: 0.7;
+  color: var(--muted);
 }
 
-.holes {
-  flex-basis: 100%;
+/* Small ticket stubs for the many Best Picture sets: year, count and a thin strip. */
+.stubs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: 0.75rem;
+}
+
+.stub-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  height: 100%;
+  padding: 0.6rem 0.65rem 0.65rem;
+  border: 2px solid var(--ticket-line);
+  border-radius: 0.5rem;
+  background: var(--parchment-paper);
+  color: var(--parchment-ink);
+  text-decoration: none;
+  filter: var(--ticket-shadow);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.08s;
   --hole-on: var(--red);
   --hole-off: var(--parchment-muted);
 }
 
-/* Red stub with the count, the same tear line and notch as a watch ticket. */
-.stub {
-  width: var(--stub);
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding-right: 0.5rem;
-  margin: -2px -2px -2px 0;
-  border-left: 2px dashed var(--ticket-line);
-  border-radius: 0 0.6rem 0.6rem 0;
-  background: var(--red);
-  color: var(--on-red);
+.stub-tile:active {
+  transform: translateY(2px);
+}
+
+.stub-tile .big {
+  font-family: var(--ticket-title);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.stub-tile .small,
+.stub-tile .count {
   font-family: var(--ticket-type);
-  line-height: 1;
-}
-
-.big {
-  font-size: 1.6rem;
-}
-
-.small {
-  margin-top: 0.2rem;
   font-size: 0.7rem;
   letter-spacing: 0.04em;
-  white-space: nowrap;
-  text-transform: uppercase;
+  color: var(--parchment-muted);
 }
 
-/* Trophies (design.md §6.2): gold when every film is watched; silver when the set was
-   completed once and a film has joined since. */
-.pile {
-  --stub-colour: var(--red);
-  --stub-ink: var(--on-red);
+.stub-tile .count {
+  margin-top: auto;
+  padding-top: 0.3rem;
+  color: var(--parchment-ink);
 }
 
-.gold {
-  --stub-colour: var(--mustard);
-  --stub-ink: var(--on-mustard);
+.stub-tile .bar {
+  margin-top: 0.15rem;
+  height: 0.55rem;
+  border-width: 1.5px;
 }
 
-.silver {
-  --stub-colour: #c3c7cc;
-  --stub-ink: #2a1a12;
+/* Trophies, as on the piles: gold when every film is watched, silver once a film joined. */
+.stub-tile.gold {
+  border-color: var(--mustard);
+  box-shadow: inset 0 0 0 2px var(--mustard);
+  --hole-on: var(--mustard);
 }
 
-.gold .stub,
-.silver .stub {
-  background: var(--stub-colour);
-  color: var(--stub-ink);
+.stub-tile.silver {
+  box-shadow: inset 0 0 0 2px #c3c7cc;
 }
 
-.gold .under,
-.silver .under {
-  background:
-    linear-gradient(rgb(60 40 20 / var(--shade)), rgb(60 40 20 / var(--shade))),
-    linear-gradient(to left, var(--stub-colour) var(--stub), transparent var(--stub)),
-    var(--parchment-paper);
+.more {
+  width: 100%;
+  margin-top: 1rem;
 }
 
 @media (min-width: 900px) {
@@ -225,6 +203,10 @@ onMounted(async () => {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.6rem 1.75rem;
+  }
+
+  .stubs {
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
   }
 }
 </style>

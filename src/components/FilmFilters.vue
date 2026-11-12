@@ -65,6 +65,20 @@ function set(changes: Partial<Filters>) {
   filters.value = next
 }
 
+// Real genres and keyword genres share one dropdown: "18" is Drama, "k4344" is Musical.
+const genreValue = computed(() =>
+  filters.value.keyword ? `k${filters.value.keyword}` : (filters.value.genre ?? ''),
+)
+
+function pickGenre(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  set(
+    value.startsWith('k')
+      ? { genre: null, keyword: Number(value.slice(1)) }
+      : { genre: value ? Number(value) : null, keyword: null },
+  )
+}
+
 function selected(event: Event): number | null {
   const value = (event.target as HTMLSelectElement).value
   return value ? Number(value) : null
@@ -158,20 +172,18 @@ function clearAll() {
     </div>
 
     <div class="field">
-      <select
-        :value="filters.genre ?? ''"
-        aria-label="Filter by genre"
-        @change="set({ genre: selected($event) })"
-      >
+      <select :value="genreValue" aria-label="Filter by genre" @change="pickGenre">
         <option value="">Any genre</option>
-        <option v-for="g in genres" :key="g.id" :value="g.id">{{ g.name }}</option>
+        <option v-for="g in genres" :key="g.id" :value="g.keyword ? `k${g.id}` : g.id">
+          {{ g.name }}
+        </option>
       </select>
       <button
-        v-if="filters.genre"
+        v-if="filters.genre || filters.keyword"
         type="button"
         class="plain small clear-one"
         aria-label="Clear genre"
-        @click="set({ genre: null })"
+        @click="set({ genre: null, keyword: null })"
       >
         <AppIcon name="close" :size="12" />
       </button>

@@ -17,9 +17,11 @@ const props = defineProps<{
   /** Shows a tick over the poster. */
   checked?: boolean
   disabled?: boolean
+  /** A ribbon across the poster's top corner, e.g. "Winner". */
+  badge?: string
 }>()
 
-const name = computed(() => [props.title, props.year].filter(Boolean).join(', '))
+const name = computed(() => [props.title, props.year, props.badge].filter(Boolean).join(', '))
 </script>
 
 <template>
@@ -36,6 +38,9 @@ const name = computed(() => [props.title, props.year].filter(Boolean).join(', ')
     <span class="poster-wrap">
       <PosterImage :path="posterPath" :title="title" />
       <span v-if="checked" class="tick"><AppIcon name="check" :size="16" /></span>
+      <span v-if="badge" class="badge" aria-hidden="true">
+        <AppIcon name="trophy" :size="11" /> {{ badge }}
+      </span>
     </span>
     <span class="seats" aria-hidden="true">
       <span class="seat">
@@ -175,6 +180,27 @@ const name = computed(() => [props.title, props.year].filter(Boolean).join(', ')
 .checked {
   outline: 3px solid var(--red);
   outline-offset: 1px;
+}
+
+/* Gold ribbon, so the winner stands out among greyed nominees. */
+.badge {
+  position: absolute;
+  z-index: 1;
+  left: 0.3rem;
+  bottom: 0.3rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.4rem;
+  border: 1.5px solid var(--line);
+  border-radius: 0.3rem;
+  background: var(--mustard);
+  color: var(--on-mustard);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .tick {
