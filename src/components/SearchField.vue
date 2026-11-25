@@ -12,6 +12,16 @@ function clear() {
   model.value = ''
   input.value?.focus()
 }
+
+// Escape clears the box first; on an empty box it's left to whatever holds the field (the
+// Find a film dialog closes on it).
+function onEscape(event: KeyboardEvent) {
+  if (!model.value) return
+  event.stopPropagation()
+  clear()
+}
+
+defineExpose({ focus: () => input.value?.focus() })
 </script>
 
 <template>
@@ -25,7 +35,7 @@ function clear() {
       enterkeyhint="search"
       autocomplete="off"
       :aria-label="label"
-      @keydown.esc="clear"
+      @keydown.esc="onEscape"
     />
     <button v-if="model" type="button" class="clear" aria-label="Clear search" @click="clear">
       <AppIcon name="close" :size="14" />

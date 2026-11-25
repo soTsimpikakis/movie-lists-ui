@@ -72,7 +72,8 @@ async function done() {
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 10;
+  /* Over the sticky tabs (10) and the Find a film dialog (12). */
+  z-index: 14;
   display: flex;
   align-items: flex-end;
   justify-content: center;

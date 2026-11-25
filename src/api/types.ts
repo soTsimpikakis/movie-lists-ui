@@ -36,11 +36,20 @@ export interface Watch {
 }
 
 /** A page of the Watched list; `next_offset` is null on the last page. */
+export interface MonthCount {
+  /** "2026-11" */
+  month: string
+  count: number
+}
+
+/** A page of the diary: dated watches only, newest watch date first. */
 export interface WatchPage {
   items: Watch[]
   next_offset: number | null
   dated_total: number
   undated_total: number
+  /** Watches per month, newest first, for every month (not just this page). */
+  months: MonthCount[]
 }
 
 export interface LibraryFilm {

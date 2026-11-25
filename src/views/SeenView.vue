@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { api } from '@/api/client'
-import type { BrowsePage, Checklist, SearchResult } from '@/api/types'
+import type { Checklist } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
 import BulkProgress from '@/components/BulkProgress.vue'
 import FilmFilters from '@/components/FilmFilters.vue'
 import PosterTile from '@/components/PosterTile.vue'
 import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
+import { useFilmBrowse } from '@/composables/useFilmBrowse'
 import { useFilmSearch } from '@/composables/useFilmSearch'
 import { saveSeen } from '@/lib/bulk'
-import { browseParams, emptyFilters, type Filters, isFiltering } from '@/lib/filters'
+import { emptyFilters, type Filters } from '@/lib/filters'
 import { ratingNote } from '@/lib/format'
 import { useRewardsStore } from '@/stores/rewards'
 
@@ -48,58 +49,15 @@ function toTop() {
 
 // Person / years / genre filters, for ticking off whole filmographies or decades at once.
 const filters = ref<Filters>(emptyFilters())
-const filtering = computed(() => isFiltering(filters.value))
-const browsed = ref<SearchResult[]>([])
-const browsePage = ref<BrowsePage | null>(null)
-const browsing = ref(false)
-// The person's roles, kept while switching between them so the buttons don't flicker.
-const roles = ref<{ roles: string[]; role: string | null }>({ roles: [], role: null })
-let browseRequest = 0
-
-// With library films hidden, a page can be mostly films already seen, so a load keeps
-// fetching (a few pages at most) until it has something worth showing.
-const TOP_UP_TO = 30
-const TOP_UP_PAGES = 3
-
-async function browse(page = 1) {
-  const mine = ++browseRequest
-  browsing.value = true
-  try {
-    const found: SearchResult[] = []
-    let result: BrowsePage
-    let fetched = 0
-    do {
-      result = await api<BrowsePage>(`/films/browse?${browseParams(filters.value, page + fetched)}`)
-      if (mine !== browseRequest) return
-      found.push(...result.results)
-      fetched++
-    } while (
-      filters.value.hideSeen &&
-      found.filter((f) => f.watch_count === 0).length < TOP_UP_TO &&
-      result.page < result.total_pages &&
-      fetched < TOP_UP_PAGES
-    )
-    browsed.value = page === 1 ? found : [...browsed.value, ...found]
-    browsePage.value = result
-    roles.value = { roles: result.roles, role: result.role }
-  } finally {
-    if (mine === browseRequest) browsing.value = false
-  }
-}
-
-// Hiding seen films happens below, so toggling it doesn't reload anything.
-watch(
-  () => (filtering.value ? browseParams(filters.value, 1).toString() : ''),
-  () => {
-    browsed.value = []
-    browsePage.value = null
-    if (filtering.value) browse()
-  },
-)
-watch(
-  () => filters.value.person?.id,
-  () => (roles.value = { roles: [], role: null }),
-)
+const {
+  filtering,
+  browsed,
+  page: browsePage,
+  browsing,
+  roles,
+  more: moreBrowsed,
+  loadMore: loadMoreBrowsed,
+} = useFilmBrowse(filters)
 
 const hidden = (seen: boolean) => filters.value.hideSeen && seen
 const shownBrowsed = computed(() => browsed.value.filter((f) => !hidden(f.watch_count > 0)))
@@ -270,10 +228,10 @@ async function save() {
         </li>
       </ul>
       <button
-        v-if="browsePage && browsePage.page < browsePage.total_pages"
+        v-if="moreBrowsed"
         class="plain load-more"
         :disabled="browsing"
-        @click="browse(browsePage.page + 1)"
+        @click="loadMoreBrowsed"
       >
         <AppIcon name="chevron-down" /> {{ browsing ? 'Loading…' : 'Load more' }}
       </button>
