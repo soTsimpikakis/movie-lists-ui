@@ -32,6 +32,16 @@ describe('mergeEvents', () => {
     ])
   })
 
+  it('keeps only the highest tickets-logged milestone', () => {
+    const at = (milestone: number): RewardEvent => ({
+      kind: 'log_milestone',
+      milestone,
+      count: milestone,
+      next_at: null,
+    })
+    expect(mergeEvents([[at(5)], [at(10)], []])).toEqual([at(10)])
+  })
+
   it('folds Journey news from every batch into one summary', () => {
     const merged = mergeEvents([
       [

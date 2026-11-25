@@ -2,6 +2,7 @@ import { post } from '@/api/client'
 import type {
   JourneySummaryEvent,
   LevelUp,
+  LogMilestoneEvent,
   RewardEvent,
   SeenResult,
   SetRewardEvent,
@@ -41,6 +42,8 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
   const stamps = new Set<string>()
   const genres = new Map<string, LevelUp>()
   const decades = new Map<string, LevelUp>()
+  // Back-fill rarely crosses a tickets-logged milestone; if batches do, the highest wins.
+  let milestone: LogMilestoneEvent | null = null
   const raise = (into: Map<string, LevelUp>, up: LevelUp) => {
     if ((into.get(up.subject)?.level ?? 0) < up.level) into.set(up.subject, up)
   }
@@ -60,6 +63,9 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
         break
       case 'decade_level':
         raise(decades, event)
+        break
+      case 'log_milestone':
+        if (!milestone || event.milestone > milestone.milestone) milestone = event
         break
       default: {
         const before = sets.get(event.set_id)
@@ -90,9 +96,11 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
     })),
   }
   const journey = stamps.size || genres.size || decades.size ? [summary] : []
-  // Trophies first, then the Journey, then plain set progress (as the API orders them).
+  // Trophies first, then tickets logged, the Journey, and plain set progress (as the API
+  // orders them).
   return [
     ...merged.filter((e) => e.kind !== 'set_progressed'),
+    ...(milestone ? [milestone] : []),
     ...journey,
     ...merged.filter((e) => e.kind === 'set_progressed'),
   ]

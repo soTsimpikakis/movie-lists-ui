@@ -141,6 +141,15 @@ export interface JourneyRewardEvent {
   next_at: number | null
 }
 
+/** Tickets logged since joining crossed a milestone: 1, 5, 10, 20… (ideabox.md). */
+export interface LogMilestoneEvent {
+  kind: 'log_milestone'
+  milestone: number
+  /** Tickets logged so far (dated watches, rewatches included). */
+  count: number
+  next_at: number | null
+}
+
 export interface LevelUp {
   subject: string
   level: number
@@ -156,7 +165,8 @@ export interface JourneySummaryEvent {
 }
 
 /** What a new watch changed, shown as reward cards. */
-export type RewardEvent = SetRewardEvent | JourneyRewardEvent | JourneySummaryEvent
+export type RewardEvent =
+  SetRewardEvent | LogMilestoneEvent | JourneyRewardEvent | JourneySummaryEvent
 
 /** Set progress past the first card, folded into one by the app (lib/rewardCards.ts). */
 export interface SetsSummaryEvent {
@@ -182,6 +192,9 @@ export interface Journey {
     watches: number
     hours: number
     this_year: number
+    /** Tickets logged since joining, and the next milestone (null past the last). */
+    logged: number
+    next_log_milestone: number | null
     first_ticket: { title: string; watched_on: string } | null
     oldest_film: { title: string; year: number } | null
     top_reaction: { name: string; count: number } | null

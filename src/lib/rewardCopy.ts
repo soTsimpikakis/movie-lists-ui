@@ -1,6 +1,7 @@
 import type {
   JourneyRewardEvent,
   JourneySummaryEvent,
+  LogMilestoneEvent,
   RewardCard,
   SetRewardEvent,
   SetsSummaryEvent,
@@ -83,6 +84,34 @@ function journeyCopy(event: JourneyRewardEvent): Copy {
   }
 }
 
+// Milestones with a name of their own; the rest are "N tickets".
+const MILESTONE_HEADLINES: Record<number, string> = {
+  1: 'Your first ticket!',
+  5: 'High five',
+  10: 'Double figures',
+  50: 'Half a century',
+  100: 'Triple figures',
+  1000: 'The thousand club',
+}
+
+function tickets(n: number): string {
+  return `${n} ticket${n === 1 ? '' : 's'}`
+}
+
+function milestoneCopy(event: LogMilestoneEvent): Copy {
+  const { milestone, count, next_at: nextAt } = event
+  const next = nextAt === null ? 'That was the last milestone. Legendary.' : `Next stop: ${nextAt}.`
+  const body =
+    milestone === 1
+      ? `Welcome to the club. Your diary has begun. ${next}`
+      : `${tickets(count)} logged since you joined. ${next}`
+  return {
+    label: 'Tickets',
+    headline: MILESTONE_HEADLINES[milestone] ?? tickets(milestone),
+    body,
+  }
+}
+
 function counted(n: number, what: string): string | null {
   return n ? `${n} ${what}${n === 1 ? '' : 's'}` : null
 }
@@ -117,6 +146,8 @@ export function rewardCopy(event: RewardCard): Copy {
       return setsSummaryCopy(event)
     case 'journey_summary':
       return summaryCopy(event)
+    case 'log_milestone':
+      return milestoneCopy(event)
     case 'genre_level':
     case 'decade_level':
     case 'country_stamp':

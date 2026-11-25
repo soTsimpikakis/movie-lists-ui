@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { JourneyRewardEvent, SetRewardEvent } from '@/api/types'
+import type { JourneyRewardEvent, LogMilestoneEvent, SetRewardEvent } from '@/api/types'
 import { rewardCopy } from '@/lib/rewardCopy'
 
 const event = (overrides: Partial<SetRewardEvent>): SetRewardEvent => ({
@@ -74,5 +74,33 @@ describe('rewardCopy for the Journey', () => {
     expect(copy.body).toBe(
       'Your library earned 2 passport stamps and 1 genre level. Find them all on the Journey tab.',
     )
+  })
+
+  describe('tickets logged', () => {
+    const milestone = (o: Partial<LogMilestoneEvent>): LogMilestoneEvent => ({
+      kind: 'log_milestone',
+      milestone: 20,
+      count: 20,
+      next_at: 30,
+      ...o,
+    })
+
+    it('welcomes the first ticket', () => {
+      const copy = rewardCopy(milestone({ milestone: 1, count: 1, next_at: 5 }))
+      expect(copy.headline).toBe('Your first ticket!')
+      expect(copy.body).toBe('Welcome to the club. Your diary has begun. Next stop: 5.')
+    })
+
+    it('counts tickets towards the next milestone', () => {
+      const copy = rewardCopy(milestone({}))
+      expect(copy.headline).toBe('20 tickets')
+      expect(copy.body).toBe('20 tickets logged since you joined. Next stop: 30.')
+      expect(rewardCopy(milestone({ milestone: 10 })).headline).toBe('Double figures')
+    })
+
+    it('ends at the last milestone', () => {
+      const copy = rewardCopy(milestone({ milestone: 1000, count: 1000, next_at: null }))
+      expect(copy.body).toMatch(/last milestone/)
+    })
   })
 })

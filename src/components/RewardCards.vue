@@ -32,6 +32,10 @@ const summary = computed(() => {
   const e = current.value
   return e?.kind === 'journey_summary' ? e : null
 })
+const milestone = computed(() => {
+  const e = current.value
+  return e?.kind === 'log_milestone' ? e : null
+})
 const setsSummary = computed(() => {
   const e = current.value
   return e?.kind === 'sets_summary' ? e : null
@@ -79,6 +83,9 @@ function celebrate() {
           </header>
           <div class="body">
             <PassportStamp v-if="stamp" class="hero-stamp" :code="stamp.subject" :tilt="-10" />
+            <span v-else-if="milestone" class="ticket-no" aria-hidden="true">
+              Nº {{ String(milestone.milestone).padStart(3, '0') }}
+            </span>
             <h2>{{ copy.headline }}</h2>
             <template v-if="setEvent">
               <p v-if="setEvent.kind !== 'set_progressed'" class="set-name">{{ setEvent.title }}</p>
@@ -245,7 +252,8 @@ function celebrate() {
 }
 
 .set_completed .band,
-.set_polished .band {
+.set_polished .band,
+.log_milestone .band {
   background: var(--mustard);
   color: var(--on-mustard);
 }
@@ -297,6 +305,18 @@ h2 {
 .journey_summary .band {
   background: var(--parchment-ink);
   color: var(--parchment);
+}
+
+/* Tickets logged: the milestone as a serial number, typed and stamped in red. */
+.ticket-no {
+  padding: 0.2rem 0.7rem;
+  border: 2px solid var(--red);
+  border-radius: 0.3rem;
+  transform: rotate(-4deg);
+  color: var(--red);
+  font-family: var(--ticket-type);
+  font-size: 2rem;
+  letter-spacing: 0.08em;
 }
 
 .hero-stamp {
