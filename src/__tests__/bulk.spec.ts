@@ -50,9 +50,18 @@ describe('mergeEvents', () => {
           stamps: ['US', 'JP'],
           genre_levels: [{ subject: 'Drama', level: 1, level_name: 'Novice' }],
           decade_levels: [],
+          keyword_levels: [],
         },
       ],
       [
+        {
+          kind: 'keyword_level',
+          subject: 'Heist',
+          level: 1,
+          level_name: 'Novice',
+          count: 3,
+          next_at: 10,
+        },
         {
           kind: 'genre_level',
           subject: 'Drama',
@@ -77,6 +86,7 @@ describe('mergeEvents', () => {
         stamps: ['US', 'JP', 'KR'],
         genre_levels: [{ subject: 'Drama', level: 2, level_name: 'Buff' }],
         decade_levels: [],
+        keyword_levels: [{ subject: 'Heist', level: 1, level_name: 'Novice' }],
       },
     ])
   })

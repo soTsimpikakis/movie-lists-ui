@@ -7,13 +7,14 @@ import AppHeader from '@/components/AppHeader.vue'
 import LevelPips from '@/components/LevelPips.vue'
 import PassportStamp from '@/components/PassportStamp.vue'
 import { formatDate } from '@/lib/format'
-import { decadeLabel, films, LEVEL_NAMES, LEVEL_THRESHOLDS } from '@/lib/journey'
+import { decadeLabel, films, LEVEL_NAMES } from '@/lib/journey'
 import { userTag } from '@/lib/username'
 import { useAuthStore } from '@/stores/auth'
 import { useReactionsStore } from '@/stores/reactions'
 
 // Journey (design.md §12, 6B): the user's whole movie journey in one place. Summary,
-// Expertise (genres), Eras (decades), Passport (countries) and set Trophies.
+// Expertise (genres), Eras (decades), Niches (keyword genres), Passport (countries) and
+// set Trophies.
 const auth = useAuthStore()
 const reactions = useReactionsStore()
 const journey = ref<Journey | null>(null)
@@ -32,7 +33,7 @@ const topReaction = computed(() => {
 /** Progress from this level's threshold to the next, 0–100. */
 function toNext(entry: JourneyLevel): number {
   if (entry.next_at === null) return 100
-  const from = entry.level ? LEVEL_THRESHOLDS[entry.level - 1]! : 0
+  const from = entry.level_at
   return Math.min(100, Math.round((100 * (entry.count - from)) / (entry.next_at - from)))
 }
 
@@ -49,7 +50,16 @@ const eras = computed(() => {
   const out: JourneyLevel[] = []
   for (let decade = first; decade <= last; decade += 10) {
     const key = String(decade)
-    out.push(watched.get(key) ?? { subject: key, count: 0, level: 0, level_name: null, next_at: 5 })
+    out.push(
+      watched.get(key) ?? {
+        subject: key,
+        count: 0,
+        level: 0,
+        level_name: null,
+        level_at: 0,
+        next_at: 5,
+      },
+    )
   }
   return out
 })
@@ -170,6 +180,28 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
           </ol>
         </section>
       </div>
+
+      <section aria-labelledby="niches">
+        <h3 id="niches">Niches</h3>
+        <p v-if="!journey.niches.length" class="muted">
+          No niches yet. Heists, spy films, musicals, anime and more each have a track here.
+        </p>
+        <ul class="levels niches">
+          <li v-for="n in journey.niches" :key="n.subject" class="level-row">
+            <span class="level-top">
+              <span class="level-name">{{ n.subject }}</span>
+              <LevelPips :level="n.level" />
+            </span>
+            <span class="bar" aria-hidden="true">
+              <span class="fill" :style="{ width: `${toNext(n)}%` }" />
+            </span>
+            <span class="level-meta">
+              <span>{{ n.level_name ?? 'Getting started' }} · {{ films(n.count) }}</span>
+              <span>{{ nextLabel(n) }}</span>
+            </span>
+          </li>
+        </ul>
+      </section>
 
       <section aria-labelledby="passport">
         <h3 id="passport">Passport</h3>
@@ -497,6 +529,17 @@ h3 {
 
   .trophies {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Niches in two columns: each row keeps its own dashed rule on top. */
+  .niches {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 1.5rem;
+  }
+
+  .niches .level-row:nth-child(2) {
+    border-top: 0;
   }
 }
 </style>

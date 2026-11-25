@@ -22,7 +22,9 @@ const setEvent = computed(() => {
 })
 const levelEvent = computed(() => {
   const e = current.value
-  return e && (e.kind === 'genre_level' || e.kind === 'decade_level') ? e : null
+  return e && (e.kind === 'genre_level' || e.kind === 'decade_level' || e.kind === 'keyword_level')
+    ? e
+    : null
 })
 const stamp = computed(() => {
   const e = current.value
@@ -121,6 +123,9 @@ function celebrate() {
               <span class="chips">
                 <span v-for="g in summary.genre_levels" :key="`g-${g.subject}`" class="chip">
                   {{ g.subject }} · {{ g.level_name }}
+                </span>
+                <span v-for="k in summary.keyword_levels" :key="`k-${k.subject}`" class="chip">
+                  {{ k.subject }} · {{ k.level_name }}
                 </span>
                 <span v-for="d in summary.decade_levels" :key="`d-${d.subject}`" class="chip">
                   {{ decadeLabel(d.subject) }} · {{ d.level_name }}

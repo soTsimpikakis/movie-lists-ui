@@ -42,6 +42,7 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
   const stamps = new Set<string>()
   const genres = new Map<string, LevelUp>()
   const decades = new Map<string, LevelUp>()
+  const niches = new Map<string, LevelUp>()
   // Back-fill rarely crosses a tickets-logged milestone; if batches do, the highest wins.
   let milestone: LogMilestoneEvent | null = null
   const raise = (into: Map<string, LevelUp>, up: LevelUp) => {
@@ -54,6 +55,7 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
         event.stamps.forEach((s) => stamps.add(s))
         event.genre_levels.forEach((up) => raise(genres, up))
         event.decade_levels.forEach((up) => raise(decades, up))
+        event.keyword_levels.forEach((up) => raise(niches, up))
         break
       case 'country_stamp':
         stamps.add(event.subject)
@@ -63,6 +65,9 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
         break
       case 'decade_level':
         raise(decades, event)
+        break
+      case 'keyword_level':
+        raise(niches, event)
         break
       case 'log_milestone':
         if (!milestone || event.milestone > milestone.milestone) milestone = event
@@ -94,8 +99,13 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
       level,
       level_name,
     })),
+    keyword_levels: [...niches.values()].map(({ subject, level, level_name }) => ({
+      subject,
+      level,
+      level_name,
+    })),
   }
-  const journey = stamps.size || genres.size || decades.size ? [summary] : []
+  const journey = stamps.size || genres.size || decades.size || niches.size ? [summary] : []
   // Trophies first, then tickets logged, the Journey, and plain set progress (as the API
   // orders them).
   return [

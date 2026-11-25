@@ -70,10 +70,24 @@ describe('rewardCopy for the Journey', () => {
       stamps: ['US', 'JP'],
       genre_levels: [{ subject: 'Drama', level: 1, level_name: 'Novice' }],
       decade_levels: [],
+      keyword_levels: [{ subject: 'Heist', level: 1, level_name: 'Novice' }],
     })
     expect(copy.body).toBe(
-      'Your library earned 2 passport stamps and 1 genre level. Find them all on the Journey tab.',
+      'Your library earned 2 passport stamps, 1 genre level and 1 niche level. ' +
+        'Find them all on the Journey tab.',
     )
+  })
+
+  it('names a niche, with a flourish for some', () => {
+    const heist = rewardCopy(
+      level({ kind: 'keyword_level', subject: 'Heist', count: 3, next_at: 10 }),
+    )
+    expect([heist.label, heist.headline]).toEqual(['Niches', 'Heist: Novice'])
+    expect(heist.body).toBe('3 films of Heist. Nobody move. 7 more to Buff.')
+    const anime = rewardCopy(
+      level({ kind: 'keyword_level', subject: 'Anime', count: 3, next_at: 10 }),
+    )
+    expect(anime.body).toBe('3 films of Anime. 7 more to Buff.')
   })
 
   describe('tickets logged', () => {

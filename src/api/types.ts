@@ -140,8 +140,8 @@ export interface SetRewardEvent {
 
 /** A Journey level reached or a passport stamp earned by one watch (design.md §12, 6B). */
 export interface JourneyRewardEvent {
-  kind: 'genre_level' | 'decade_level' | 'country_stamp'
-  /** A genre name, a decade ("1990") or a country code ("KR"). */
+  kind: 'genre_level' | 'decade_level' | 'country_stamp' | 'keyword_level'
+  /** A genre name, a decade ("1990"), a country code ("KR") or a keyword genre ("Heist"). */
   subject: string
   level: number
   level_name: string | null
@@ -170,6 +170,7 @@ export interface JourneySummaryEvent {
   stamps: string[]
   genre_levels: LevelUp[]
   decade_levels: LevelUp[]
+  keyword_levels: LevelUp[]
 }
 
 /** What a new watch changed, shown as reward cards. */
@@ -190,6 +191,8 @@ export interface JourneyLevel {
   count: number
   level: number
   level_name: string | null
+  /** Films the current level took (0 before Novice), for progress towards `next_at`. */
+  level_at: number
   next_at: number | null
 }
 
@@ -210,6 +213,8 @@ export interface Journey {
   }
   expertise: JourneyLevel[]
   eras: JourneyLevel[]
+  /** Keyword genres (Heist, Spy…) with at least one film. */
+  niches: JourneyLevel[]
   passport: { code: string; count: number; stamped_at: string | null }[]
   trophies: {
     set_id: number

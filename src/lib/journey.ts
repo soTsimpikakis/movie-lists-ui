@@ -1,7 +1,5 @@
 // Journey helpers (design.md §12, 6B). Level names mirror app/journey.py on the backend.
 export const LEVEL_NAMES = ['Novice', 'Buff', 'Connoisseur', 'Master', 'Legend']
-/** Distinct films needed for each level. */
-export const LEVEL_THRESHOLDS = [5, 15, 30, 60, 100]
 
 let regions: Intl.DisplayNames | undefined
 try {

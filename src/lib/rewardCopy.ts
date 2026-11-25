@@ -61,12 +61,34 @@ function toNext(event: JourneyRewardEvent): string {
   return `${event.next_at - event.count} more to ${LEVEL_NAMES[event.level]}.`
 }
 
+// A line of character for some niches (design.md §6.4); the rest go without.
+const NICHE_FLOURISH: Record<string, string> = {
+  Heist: 'Nobody move.',
+  Spy: 'Shaken, not stirred.',
+  Zombie: 'Braaains.',
+  Christmas: 'Ho ho ho.',
+  Musical: 'Take it from the top.',
+  Slasher: "Don't go in there.",
+  'Film Noir': 'The night was dark.',
+  'Silent Film': '…',
+}
+
 function journeyCopy(event: JourneyRewardEvent): Copy {
   if (event.kind === 'country_stamp') {
     return {
       label: 'Passport',
       headline: 'New stamp!',
       body: `Your first film from ${countryName(event.subject)}. Bon voyage.`,
+    }
+  }
+  if (event.kind === 'keyword_level') {
+    const flourish = NICHE_FLOURISH[event.subject]
+    return {
+      label: 'Niches',
+      headline: `${event.subject}: ${event.level_name}`,
+      body: [`${films(event.count)} of ${event.subject}.`, flourish, toNext(event)]
+        .filter(Boolean)
+        .join(' '),
     }
   }
   if (event.kind === 'decade_level') {
@@ -121,6 +143,7 @@ function summaryCopy(event: JourneySummaryEvent): Copy {
     counted(event.stamps.length, 'passport stamp'),
     counted(event.genre_levels.length, 'genre level'),
     counted(event.decade_levels.length, 'era level'),
+    counted(event.keyword_levels.length, 'niche level'),
   ].filter((part): part is string => part !== null)
   const last = parts[parts.length - 1]
   const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${last}` : last
@@ -150,6 +173,7 @@ export function rewardCopy(event: RewardCard): Copy {
       return milestoneCopy(event)
     case 'genre_level':
     case 'decade_level':
+    case 'keyword_level':
     case 'country_stamp':
       return journeyCopy(event)
     default:
