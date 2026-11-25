@@ -1,81 +1,154 @@
 import type { SetSummary } from '@/api/types'
 
-/** A Best Picture set on a small tile: "2011" over "83rd Oscars", or "1990s" over "Winners". */
-export interface AwardTile {
-  set: SetSummary
-  big: string
-  small: string
+// The Sets pages (design.md §6.1): a grid of shelves, one per kind of set. On a shelf, sets
+// on their own show as piles. Grouped sets (Best Picture, the MCU) show together: the group's
+// lead set as a pile, the rest as small tiles under their section ("Phases").
+// Everything comes from the seed data, so a new award or franchise group needs no code here.
+
+export type ShelfKind = SetSummary['kind']
+
+const SHELF_ORDER: ShelfKind[] = ['franchise', 'director', 'awards']
+export const SHELF_TITLES: Record<ShelfKind, string> = {
+  franchise: 'Franchises',
+  director: 'Directors',
+  awards: 'Awards',
 }
 
-export interface SetGroups {
-  /** Franchises and directors, as ticket piles. */
-  piles: SetSummary[]
-  /** Every Best Picture winner, as a pile of its own. */
-  allWinners: SetSummary | null
-  decades: AwardTile[]
-  /** One per ceremony, oldest first. */
-  ceremonies: AwardTile[]
+export interface Section {
+  name: string
+  sets: SetSummary[]
 }
 
-// The award sets' keys come from app/awards.py: best-picture-winners,
-// best-picture-winners-1990s and best-picture-oscars-83.
-const DECADE = /^best-picture-winners-(\d{4}s)$/
-const CEREMONY = /^best-picture-oscars-(\d+)$/
+export interface Group {
+  key: string
+  title: string
+  /** The set that stands for the whole group ("Every MCU film"), if it has one. */
+  lead: SetSummary | null
+  sections: Section[]
+  /** Every set in the group, lead first. */
+  sets: SetSummary[]
+}
 
-export function groupSets(sets: SetSummary[]): SetGroups {
-  const groups: SetGroups = { piles: [], allWinners: null, decades: [], ceremonies: [] }
-  const numbers = new Map<number, number>()
+export interface Shelf {
+  kind: ShelfKind
+  title: string
+  sets: SetSummary[]
+  /** Sets in no group, as piles. */
+  standalone: SetSummary[]
+  groups: Group[]
+}
+
+/** The text on a small tile: its label ("Phase One", "2011"), else its title. */
+export const tileLabel = (set: SetSummary) => set.label ?? set.title
+
+/** Sets by shelf, in seed order (the API lists them that way). Empty shelves are left out. */
+export function shelves(sets: SetSummary[]): Shelf[] {
+  const byKind = new Map<ShelfKind, Shelf>()
+  const groups = new Map<string, Group>()
   for (const set of sets) {
-    const decade = DECADE.exec(set.key)
-    const ceremony = CEREMONY.exec(set.key)
-    if (set.kind !== 'awards') groups.piles.push(set)
-    else if (set.key === 'best-picture-winners') groups.allWinners = set
-    else if (decade) groups.decades.push({ set, big: decade[1]!, small: 'Winners' })
-    else if (ceremony) {
-      // "Best Picture 2011 · 83rd Oscars"
-      const [year = set.title, nth = ''] = set.title.replace(/^Best Picture /, '').split(' · ')
-      groups.ceremonies.push({ set, big: year, small: nth })
-      numbers.set(set.id, Number(ceremony[1]))
-    } else groups.piles.push(set)
+    let shelf = byKind.get(set.kind)
+    if (!shelf) {
+      shelf = {
+        kind: set.kind,
+        title: SHELF_TITLES[set.kind],
+        sets: [],
+        standalone: [],
+        groups: [],
+      }
+      byKind.set(set.kind, shelf)
+    }
+    shelf.sets.push(set)
+    if (!set.group_key) {
+      shelf.standalone.push(set)
+      continue
+    }
+    let group = groups.get(set.group_key)
+    if (!group) {
+      group = {
+        key: set.group_key,
+        title: set.group_title ?? set.group_key,
+        lead: null,
+        sections: [],
+        sets: [],
+      }
+      groups.set(set.group_key, group)
+      shelf.groups.push(group)
+    }
+    if (set.section === null) {
+      group.lead ??= set
+      continue
+    }
+    let section = group.sections.find((s) => s.name === set.section)
+    if (!section) {
+      section = { name: set.section, sets: [] }
+      group.sections.push(section)
+    }
+    section.sets.push(set)
   }
-  groups.ceremonies.sort((a, b) => numbers.get(a.set.id)! - numbers.get(b.set.id)!)
-  return groups
+  for (const group of groups.values()) {
+    group.sets = [...(group.lead ? [group.lead] : []), ...group.sections.flatMap((s) => s.sets)]
+  }
+  const rank = (kind: ShelfKind) => {
+    const i = SHELF_ORDER.indexOf(kind)
+    return i === -1 ? SHELF_ORDER.length : i
+  }
+  return [...byKind.values()].sort((a, b) => rank(a.kind) - rank(b.kind))
 }
 
-/** Ceremonies by the decade they were held in (1950 for 1950–1959), oldest first. */
-export function byDecade(ceremonies: AwardTile[]): Map<number, AwardTile[]> {
-  const decades = new Map<number, AwardTile[]>()
-  for (const tile of ceremonies) {
-    const decade = Math.floor(Number(tile.big) / 10) * 10
-    decades.set(decade, [...(decades.get(decade) ?? []), tile])
-  }
+export const goldCount = (sets: SetSummary[]) => sets.filter((s) => s.trophy === 'gold').length
+
+/** A section of years ("Nominees by year") long enough to show one decade at a time. */
+export function byDecade(section: Section): Map<number, SetSummary[]> | null {
+  const years = section.sets.map((s) => (s.label && /^\d{4}$/.test(s.label) ? +s.label : NaN))
+  if (section.sets.length <= 15 || years.some(Number.isNaN)) return null
+  const decades = new Map<number, SetSummary[]>()
+  section.sets.forEach((set, i) => {
+    const decade = Math.floor(years[i]! / 10) * 10
+    decades.set(decade, [...(decades.get(decade) ?? []), set])
+  })
   return decades
 }
 
 /** Sets that belong together, in order, for stepping through with previous and next. */
 export interface Series {
   name: string
+  shelf: ShelfKind
   items: { set: SetSummary; label: string }[]
 }
 
 export function seriesOf(sets: SetSummary[]): Series[] {
-  const g = groupSets(sets)
-  const winners = [
-    ...(g.allWinners ? [{ set: g.allWinners, label: 'Every winner' }] : []),
-    ...g.decades.map((t) => ({ set: t.set, label: t.big })),
-  ]
-  return [
-    { name: 'Franchises & directors', items: g.piles.map((set) => ({ set, label: set.title })) },
-    { name: 'Best Picture winners', items: winners },
-    {
-      name: 'Best Picture by year',
-      items: g.ceremonies.map((t) => ({ set: t.set, label: t.big })),
-    },
-  ].filter((s) => s.items.length)
+  const series: Series[] = []
+  for (const shelf of shelves(sets)) {
+    series.push({
+      name: shelf.title,
+      shelf: shelf.kind,
+      items: shelf.standalone.map((set) => ({ set, label: set.title })),
+    })
+    for (const group of shelf.groups) {
+      // The lead steps into the first section: Every MCU film → Phase One → Phase Two…
+      group.sections.forEach((section, i) => {
+        const lead = i === 0 && group.lead ? [{ set: group.lead, label: group.lead.title }] : []
+        series.push({
+          name: `${group.title} · ${section.name}`,
+          shelf: shelf.kind,
+          items: [...lead, ...section.sets.map((set) => ({ set, label: tileLabel(set) }))],
+        })
+      })
+      if (!group.sections.length && group.lead) {
+        series.push({
+          name: group.title,
+          shelf: shelf.kind,
+          items: [{ set: group.lead, label: group.lead.title }],
+        })
+      }
+    }
+  }
+  return series.filter((s) => s.items.length)
 }
 
 export interface Neighbours {
   series: string
+  shelf: ShelfKind
   /** 1-based place in the series, and how many it has. */
   position: number
   count: number
@@ -89,6 +162,7 @@ export function neighbours(sets: SetSummary[], id: number): Neighbours | null {
     if (i === -1) continue
     return {
       series: series.name,
+      shelf: series.shelf,
       position: i + 1,
       count: series.items.length,
       prev: series.items[i - 1] ?? null,

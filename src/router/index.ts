@@ -20,6 +20,11 @@ const router = createRouter({
     { path: '/watches/:id', name: 'watch', component: () => import('@/views/WatchView.vue') },
     { path: '/library', name: 'library', component: () => import('@/views/LibraryView.vue') },
     { path: '/sets', name: 'sets', component: () => import('@/views/SetsView.vue') },
+    {
+      path: '/sets/shelf/:kind',
+      name: 'shelf',
+      component: () => import('@/views/ShelfView.vue'),
+    },
     { path: '/sets/:id', name: 'set', component: () => import('@/views/SetView.vue') },
     { path: '/journey', name: 'journey', component: () => import('@/views/JourneyView.vue') },
     { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue') },

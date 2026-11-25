@@ -10,8 +10,10 @@ import type { SetSummary } from '@/api/types'
  */
 export const useSetsStore = defineStore('sets', () => {
   const sets = ref<SetSummary[] | null>(null)
-  // Which decade of Best Picture years the Sets page shows; null until the user picks one.
-  const ceremonyDecade = ref<number | null>(null)
+  // What each shelf page shows, kept while browsing: the decade picked in a long section of
+  // years ("group/section" -> decade) and the group tab open on a shelf (kind -> group key).
+  const decades = ref<Record<string, number>>({})
+  const tabs = ref<Record<string, string>>({})
 
   async function refresh() {
     sets.value = await api<SetSummary[]>('/sets')
@@ -23,5 +25,5 @@ export const useSetsStore = defineStore('sets', () => {
     else void refresh().catch(() => {})
   }
 
-  return { sets, ceremonyDecade, refresh, load }
+  return { sets, decades, tabs, refresh, load }
 })

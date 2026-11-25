@@ -70,6 +70,14 @@ export interface SetSummary {
   title: string
   kind: 'franchise' | 'director' | 'awards'
   theme_key: string | null
+  /** Sets that show together on their shelf (Best Picture, the MCU); null for a lone set. */
+  group_key: string | null
+  group_title: string | null
+  /** Its heading within the group ("Phases"); null for the group's lead set. */
+  section: string | null
+  /** Short text for its tile ("Phase One", "2011") and a second line ("83rd Oscars"). */
+  label: string | null
+  sublabel: string | null
   total: number
   watched: number
   /** Gold: every film watched. Silver: completed once, but a film was added since. */

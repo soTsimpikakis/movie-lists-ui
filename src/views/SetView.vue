@@ -13,7 +13,7 @@ import TicketProgress from '@/components/TicketProgress.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 import { saveSeen } from '@/lib/bulk'
 import { formatDate } from '@/lib/format'
-import { neighbours } from '@/lib/sets'
+import { neighbours, SHELF_TITLES } from '@/lib/sets'
 import { useRewardsStore } from '@/stores/rewards'
 import { useSetsStore } from '@/stores/sets'
 
@@ -133,6 +133,13 @@ async function onLogged() {
 
     <p v-if="notFound" class="muted">This set doesn't exist.</p>
     <template v-else-if="set">
+      <RouterLink
+        v-if="nav"
+        class="button-link plain small up"
+        :to="{ name: 'shelf', params: { kind: nav.shelf } }"
+      >
+        <AppIcon name="back" :size="14" /> {{ SHELF_TITLES[nav.shelf] }}
+      </RouterLink>
       <nav v-if="nav && nav.count > 1" class="set-nav" :aria-label="`${nav.series}`">
         <RouterLink
           v-if="nav.prev"
@@ -312,6 +319,10 @@ async function onLogged() {
 }
 
 /* Where you are in the series, then previous and next under it. */
+.up {
+  margin-bottom: 0.9rem;
+}
+
 .set-nav {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

@@ -29,7 +29,10 @@ const tag = computed(() => (auth.user ? userTag(auth.user) : ''))
   <nav class="tabs">
     <RouterLink :to="{ name: 'home' }">Watched</RouterLink>
     <RouterLink :to="{ name: 'library' }">Library</RouterLink>
-    <RouterLink :to="{ name: 'sets' }" :class="{ 'router-link-active': $route.name === 'set' }">
+    <RouterLink
+      :to="{ name: 'sets' }"
+      :class="{ 'router-link-active': $route.name === 'set' || $route.name === 'shelf' }"
+    >
       Sets
     </RouterLink>
     <RouterLink :to="{ name: 'journey' }">Journey</RouterLink>
