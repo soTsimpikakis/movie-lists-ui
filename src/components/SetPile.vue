@@ -29,7 +29,7 @@ const KIND_LABELS: Partial<Record<SetSummary['kind'], string>> = {
         <TicketProgress class="holes" :watched="set.watched" :total="set.total" />
       </span>
       <span class="stub">
-        <template v-if="set.watched === set.total">
+        <template v-if="set.total && set.watched === set.total">
           <span class="big">✓</span>
           <span class="small">all {{ set.total }}</span>
         </template>

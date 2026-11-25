@@ -88,6 +88,9 @@ export interface SetFilm {
   watch_count: number
   /** Singled out, e.g. the year's Best Picture winner. */
   highlight: boolean
+  release_date: string | null
+  /** Not out yet, so not in the set's total: shown greyed with its date. */
+  upcoming: boolean
 }
 
 export interface SetDetail extends SetSummary {

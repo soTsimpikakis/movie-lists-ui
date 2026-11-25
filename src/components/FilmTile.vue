@@ -19,9 +19,15 @@ const props = defineProps<{
   disabled?: boolean
   /** A ribbon on the ticket's top band, e.g. "Winner". */
   badge?: string
+  /** Not out yet: its release date (DD-MM-YYYY), stamped across the poster. */
+  upcoming?: string
 }>()
 
-const name = computed(() => [props.title, props.year, props.badge].filter(Boolean).join(', '))
+const name = computed(() =>
+  [props.title, props.year, props.badge, props.upcoming && `coming ${props.upcoming}`]
+    .filter(Boolean)
+    .join(', '),
+)
 </script>
 
 <template>
@@ -42,6 +48,9 @@ const name = computed(() => [props.title, props.year, props.badge].filter(Boolea
     <span class="poster-wrap">
       <PosterImage :path="posterPath" :title="title" />
       <span v-if="checked" class="tick"><AppIcon name="check" :size="16" /></span>
+      <span v-if="upcoming" class="coming" aria-hidden="true">
+        Coming<span class="coming-date">{{ upcoming }}</span>
+      </span>
     </span>
     <span class="seats" aria-hidden="true">
       <span class="seat">
@@ -204,6 +213,33 @@ const name = computed(() => [props.title, props.year, props.badge].filter(Boolea
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* Not out yet: a rubber stamp across the greyed poster. */
+.coming {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.25rem 0.45rem;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  border: 2px solid var(--red);
+  border-radius: 0.3rem;
+  background: var(--bg);
+  color: var(--red);
+  font-family: var(--ticket-type);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.coming-date {
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
 }
 
 .tick {

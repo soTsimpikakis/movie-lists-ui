@@ -12,6 +12,7 @@ import LogSheet from '@/components/LogSheet.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 import { saveSeen } from '@/lib/bulk'
+import { formatDate } from '@/lib/format'
 import { neighbours } from '@/lib/sets'
 import { useRewardsStore } from '@/stores/rewards'
 import { useSetsStore } from '@/stores/sets'
@@ -32,7 +33,12 @@ const picked = ref<SearchResult | null>(null)
 const busy = ref(false)
 const toast = ref('')
 
-const complete = computed(() => set.value && set.value.watched === set.value.total)
+// A set of nothing but upcoming films isn't complete yet.
+const complete = computed(
+  () => set.value && set.value.total > 0 && set.value.watched === set.value.total,
+)
+// Upcoming films are listed, but can't be ticked or logged until they're out.
+const upcomingCount = computed(() => set.value?.films.filter((f) => f.upcoming).length ?? 0)
 
 async function load() {
   try {
@@ -57,7 +63,7 @@ function flash(message: string) {
 }
 
 function tap(film: SetFilm) {
-  if (film.watched) return
+  if (film.watched || film.upcoming) return
   if (selecting.value) {
     const next = new Set(ticked.value)
     if (!next.delete(film.tmdb_id)) next.add(film.tmdb_id)
@@ -67,7 +73,7 @@ function tap(film: SetFilm) {
   }
 }
 
-const unwatched = computed(() => set.value?.films.filter((f) => !f.watched) ?? [])
+const unwatched = computed(() => set.value?.films.filter((f) => !f.watched && !f.upcoming) ?? [])
 const allTicked = computed(
   () => unwatched.value.length > 0 && unwatched.value.every((f) => ticked.value.has(f.tmdb_id)),
 )
@@ -170,10 +176,13 @@ async function onLogged() {
                 ? `A new film joined. Watch it to polish this back to gold.`
                 : `${set.total - set.watched} to go.`
           }}
+          <template v-if="upcomingCount">
+            {{ upcomingCount }} more {{ upcomingCount === 1 ? 'is' : 'are' }} on the way.
+          </template>
         </span>
       </section>
 
-      <div v-if="!complete" class="hint-row">
+      <div v-if="!complete && unwatched.length" class="hint-row">
         <span class="muted">
           {{ selecting ? "Tap the films you've already seen" : 'Tap a film to log it' }}
           <template v-if="selecting && tickedElsewhere">
@@ -194,8 +203,11 @@ async function onLogged() {
             :watch-count="film.watch_count"
             :muted="!film.watched && !ticked.has(film.tmdb_id)"
             :checked="ticked.has(film.tmdb_id)"
-            :disabled="film.watched"
+            :disabled="film.watched || film.upcoming"
             :badge="film.highlight ? 'Winner' : undefined"
+            :upcoming="
+              film.upcoming && film.release_date ? formatDate(film.release_date) : undefined
+            "
             @click="tap(film)"
           />
         </li>
