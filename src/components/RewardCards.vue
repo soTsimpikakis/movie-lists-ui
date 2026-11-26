@@ -6,7 +6,7 @@ import LevelPips from '@/components/LevelPips.vue'
 import PassportStamp from '@/components/PassportStamp.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
 import { decadeLabel } from '@/lib/journey'
-import { rewardCopy } from '@/lib/rewardCopy'
+import { hoursText, rewardCopy } from '@/lib/rewardCopy'
 import { useRewardsStore } from '@/stores/rewards'
 
 // The moment after Done (design.md §6.3): one ticket per change, stacked. Celebrate plays a
@@ -37,6 +37,10 @@ const summary = computed(() => {
 const milestone = computed(() => {
   const e = current.value
   return e?.kind === 'log_milestone' ? e : null
+})
+const watchTime = computed(() => {
+  const e = current.value
+  return e?.kind === 'watch_time' ? e : null
 })
 const setsSummary = computed(() => {
   const e = current.value
@@ -87,6 +91,9 @@ function celebrate() {
             <PassportStamp v-if="stamp" class="hero-stamp" :code="stamp.subject" :tilt="-10" />
             <span v-else-if="milestone" class="ticket-no" aria-hidden="true">
               Nº {{ String(milestone.milestone).padStart(3, '0') }}
+            </span>
+            <span v-else-if="watchTime" class="ticket-no" aria-hidden="true">
+              {{ hoursText(watchTime.hours) }} h
             </span>
             <h2>{{ copy.headline }}</h2>
             <template v-if="setEvent">
@@ -258,7 +265,8 @@ function celebrate() {
 
 .set_completed .band,
 .set_polished .band,
-.log_milestone .band {
+.log_milestone .band,
+.watch_time .band {
   background: var(--mustard);
   color: var(--on-mustard);
 }

@@ -8,6 +8,7 @@ import LevelPips from '@/components/LevelPips.vue'
 import PassportStamp from '@/components/PassportStamp.vue'
 import { formatDate } from '@/lib/format'
 import { decadeLabel, films, LEVEL_NAMES } from '@/lib/journey'
+import { hoursText } from '@/lib/rewardCopy'
 import { userTag } from '@/lib/username'
 import { useAuthStore } from '@/stores/auth'
 import { useReactionsStore } from '@/stores/reactions'
@@ -126,6 +127,15 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
               {{ journey.summary.logged }}
               <template v-if="journey.summary.next_log_milestone">
                 · next milestone at {{ journey.summary.next_log_milestone }}
+              </template>
+            </dd>
+          </div>
+          <div v-if="journey.summary.hours">
+            <dt>Watch time</dt>
+            <dd>
+              {{ hoursText(journey.summary.hours) }} hours
+              <template v-if="journey.summary.next_watch_time">
+                · next checkpoint at {{ hoursText(journey.summary.next_watch_time) }}
               </template>
             </dd>
           </div>

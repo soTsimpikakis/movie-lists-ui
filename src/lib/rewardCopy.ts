@@ -3,6 +3,7 @@ import type {
   JourneySummaryEvent,
   LogMilestoneEvent,
   RewardCard,
+  WatchTimeEvent,
   SetRewardEvent,
   SetsSummaryEvent,
 } from '@/api/types'
@@ -134,6 +135,41 @@ function milestoneCopy(event: LogMilestoneEvent): Copy {
   }
 }
 
+// Checkpoints with a name of their own; the rest are "1,000 hours".
+const WATCH_TIME_HEADLINES: Record<number, string> = {
+  24: 'A full day of film',
+  168: 'A week of film',
+  336: 'Two weeks of film',
+  720: 'A month of film',
+  2160: 'Three months of film',
+  8760: 'A year of film',
+}
+
+const plural = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`
+
+/** 1334 -> "1,334". */
+export const hoursText = (n: number) => n.toLocaleString('en-GB')
+
+/** 1334 hours -> "55 days and 14 hours". */
+function asDays(hours: number): string {
+  const days = Math.floor(hours / 24)
+  const rest = hours % 24
+  return rest ? `${plural(days, 'day')} and ${plural(rest, 'hour')}` : plural(days, 'day')
+}
+
+function watchTimeCopy(event: WatchTimeEvent): Copy {
+  const { hours, total_hours: total, next_at: nextAt } = event
+  const next =
+    nextAt === null
+      ? 'That was the last checkpoint. Legendary.'
+      : `Next stop: ${hoursText(nextAt)} hours.`
+  return {
+    label: 'Watch time',
+    headline: WATCH_TIME_HEADLINES[hours] ?? `${hoursText(hours)} hours`,
+    body: `${hoursText(total)} hours of film so far: ${asDays(total)}. ${next}`,
+  }
+}
+
 function counted(n: number, what: string): string | null {
   return n ? `${n} ${what}${n === 1 ? '' : 's'}` : null
 }
@@ -171,6 +207,8 @@ export function rewardCopy(event: RewardCard): Copy {
       return summaryCopy(event)
     case 'log_milestone':
       return milestoneCopy(event)
+    case 'watch_time':
+      return watchTimeCopy(event)
     case 'genre_level':
     case 'decade_level':
     case 'keyword_level':

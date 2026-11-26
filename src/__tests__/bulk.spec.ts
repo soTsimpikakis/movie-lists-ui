@@ -32,6 +32,16 @@ describe('mergeEvents', () => {
     ])
   })
 
+  it('keeps the highest watch time checkpoint from a big back-fill', () => {
+    const at = (hours: number, total: number): RewardEvent => ({
+      kind: 'watch_time',
+      hours,
+      total_hours: total,
+      next_at: null,
+    })
+    expect(mergeEvents([[at(500, 610)], [], [at(1000, 1334)]])).toEqual([at(1000, 1334)])
+  })
+
   it('keeps only the highest tickets-logged milestone', () => {
     const at = (milestone: number): RewardEvent => ({
       kind: 'log_milestone',

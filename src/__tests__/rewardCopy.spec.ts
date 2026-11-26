@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import type { JourneyRewardEvent, LogMilestoneEvent, SetRewardEvent } from '@/api/types'
+import type {
+  JourneyRewardEvent,
+  LogMilestoneEvent,
+  SetRewardEvent,
+  WatchTimeEvent,
+} from '@/api/types'
 import { rewardCopy } from '@/lib/rewardCopy'
 
 const event = (overrides: Partial<SetRewardEvent>): SetRewardEvent => ({
@@ -115,6 +120,38 @@ describe('rewardCopy for the Journey', () => {
     it('ends at the last milestone', () => {
       const copy = rewardCopy(milestone({ milestone: 1000, count: 1000, next_at: null }))
       expect(copy.body).toMatch(/last milestone/)
+    })
+  })
+
+  describe('watch time', () => {
+    const at = (o: Partial<WatchTimeEvent>): WatchTimeEvent => ({
+      kind: 'watch_time',
+      hours: 24,
+      total_hours: 24,
+      next_at: 50,
+      ...o,
+    })
+
+    it('names the day, week and month checkpoints', () => {
+      expect(rewardCopy(at({})).headline).toBe('A full day of film')
+      expect(rewardCopy(at({})).body).toBe('24 hours of film so far: 1 day. Next stop: 50 hours.')
+      expect(rewardCopy(at({ hours: 720, total_hours: 730 })).headline).toBe('A month of film')
+    })
+
+    it('counts big totals in hours and days', () => {
+      const copy = rewardCopy(at({ hours: 1000, total_hours: 1334, next_at: 1500 }))
+      expect(copy.headline).toBe('1,000 hours')
+      expect(copy.body).toBe(
+        '1,334 hours of film so far: 55 days and 14 hours. Next stop: 1,500 hours.',
+      )
+    })
+
+    it('ends at a year of film', () => {
+      const copy = rewardCopy(at({ hours: 8760, total_hours: 8761, next_at: null }))
+      expect([copy.headline, copy.body]).toEqual([
+        'A year of film',
+        '8,761 hours of film so far: 365 days and 1 hour. That was the last checkpoint. Legendary.',
+      ])
     })
   })
 })

@@ -6,6 +6,7 @@ import type {
   RewardEvent,
   SeenResult,
   SetRewardEvent,
+  WatchTimeEvent,
 } from '@/api/types'
 
 // Big "Movies I've seen" saves go in batches, so the loading screen can show real progress
@@ -45,6 +46,8 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
   const niches = new Map<string, LevelUp>()
   // Back-fill rarely crosses a tickets-logged milestone; if batches do, the highest wins.
   let milestone: LogMilestoneEvent | null = null
+  // A big back-fill can cross watch time checkpoints in several batches: the highest wins.
+  let watchTime: WatchTimeEvent | null = null
   const raise = (into: Map<string, LevelUp>, up: LevelUp) => {
     if ((into.get(up.subject)?.level ?? 0) < up.level) into.set(up.subject, up)
   }
@@ -71,6 +74,9 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
         break
       case 'log_milestone':
         if (!milestone || event.milestone > milestone.milestone) milestone = event
+        break
+      case 'watch_time':
+        if (!watchTime || event.hours >= watchTime.hours) watchTime = event
         break
       default: {
         const before = sets.get(event.set_id)
@@ -106,11 +112,12 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
     })),
   }
   const journey = stamps.size || genres.size || decades.size || niches.size ? [summary] : []
-  // Trophies first, then tickets logged, the Journey, and plain set progress (as the API
-  // orders them).
+  // Trophies first, then tickets logged and watch time, the Journey, and plain set progress
+  // (as the API orders them).
   return [
     ...merged.filter((e) => e.kind !== 'set_progressed'),
     ...(milestone ? [milestone] : []),
+    ...(watchTime ? [watchTime] : []),
     ...journey,
     ...merged.filter((e) => e.kind === 'set_progressed'),
   ]
