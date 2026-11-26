@@ -158,6 +158,15 @@ export interface LogMilestoneEvent {
   next_at: number | null
 }
 
+/** Different films in the library crossed a milestone: 10, 25, 50, 100… (ideabox.md). */
+export interface FilmMilestoneEvent {
+  kind: 'film_milestone'
+  milestone: number
+  /** Different films in the library, back-fill included. */
+  count: number
+  next_at: number | null
+}
+
 /** Hours of film watched crossed a checkpoint: a day, 50 hours, a week… (ideabox.md). */
 export interface WatchTimeEvent {
   kind: 'watch_time'
@@ -185,7 +194,12 @@ export interface JourneySummaryEvent {
 
 /** What a new watch changed, shown as reward cards. */
 export type RewardEvent =
-  SetRewardEvent | LogMilestoneEvent | WatchTimeEvent | JourneyRewardEvent | JourneySummaryEvent
+  | SetRewardEvent
+  | LogMilestoneEvent
+  | FilmMilestoneEvent
+  | WatchTimeEvent
+  | JourneyRewardEvent
+  | JourneySummaryEvent
 
 /** Set progress past the first card, folded into one by the app (lib/rewardCards.ts). */
 export interface SetsSummaryEvent {
@@ -216,6 +230,8 @@ export interface Journey {
     /** Tickets logged since joining, and the next milestone (null past the last). */
     logged: number
     next_log_milestone: number | null
+    /** The next library-size milestone (null past the last). */
+    next_film_milestone: number | null
     /** The next watch time checkpoint, in hours (null past the last). */
     next_watch_time: number | null
     first_ticket: { title: string; watched_on: string } | null

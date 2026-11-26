@@ -121,6 +121,15 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
               {{ topReaction.info?.label ?? topReaction.name }} ×{{ topReaction.count }}
             </dd>
           </div>
+          <div v-if="journey.summary.films">
+            <dt>Library</dt>
+            <dd>
+              {{ films(journey.summary.films) }}
+              <template v-if="journey.summary.next_film_milestone">
+                · next milestone at {{ journey.summary.next_film_milestone }}
+              </template>
+            </dd>
+          </div>
           <div v-if="journey.summary.logged">
             <dt>Tickets logged</dt>
             <dd>

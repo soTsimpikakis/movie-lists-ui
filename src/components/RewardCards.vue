@@ -38,6 +38,10 @@ const milestone = computed(() => {
   const e = current.value
   return e?.kind === 'log_milestone' ? e : null
 })
+const filmMilestone = computed(() => {
+  const e = current.value
+  return e?.kind === 'film_milestone' ? e : null
+})
 const watchTime = computed(() => {
   const e = current.value
   return e?.kind === 'watch_time' ? e : null
@@ -94,6 +98,9 @@ function celebrate() {
             </span>
             <span v-else-if="watchTime" class="ticket-no" aria-hidden="true">
               {{ hoursText(watchTime.hours) }} h
+            </span>
+            <span v-else-if="filmMilestone" class="ticket-no" aria-hidden="true">
+              {{ filmMilestone.milestone }} films
             </span>
             <h2>{{ copy.headline }}</h2>
             <template v-if="setEvent">
@@ -266,6 +273,7 @@ function celebrate() {
 .set_completed .band,
 .set_polished .band,
 .log_milestone .band,
+.film_milestone .band,
 .watch_time .band {
   background: var(--mustard);
   color: var(--on-mustard);

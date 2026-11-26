@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type {
+  FilmMilestoneEvent,
   JourneyRewardEvent,
   LogMilestoneEvent,
   SetRewardEvent,
@@ -151,6 +152,31 @@ describe('rewardCopy for the Journey', () => {
       expect([copy.headline, copy.body]).toEqual([
         'A year of film',
         '8,761 hours of film so far: 365 days and 1 hour. That was the last checkpoint. Legendary.',
+      ])
+    })
+  })
+
+  describe('library size', () => {
+    const at = (o: Partial<FilmMilestoneEvent>): FilmMilestoneEvent => ({
+      kind: 'film_milestone',
+      milestone: 100,
+      count: 100,
+      next_at: 150,
+      ...o,
+    })
+
+    it('names round sizes and counts the rest', () => {
+      const copy = rewardCopy(at({}))
+      expect([copy.label, copy.headline]).toEqual(['Library', 'A hundred films'])
+      expect(copy.body).toBe('100 films in your library, each one counted once. Next stop: 150.')
+      expect(rewardCopy(at({ milestone: 250, count: 262 })).headline).toBe('250 films')
+    })
+
+    it('ends at a thousand', () => {
+      const copy = rewardCopy(at({ milestone: 1000, count: 1003, next_at: null }))
+      expect([copy.headline, copy.body]).toEqual([
+        'The thousand-film library',
+        '1003 films in your library, each one counted once. That was the last milestone. Legendary.',
       ])
     })
   })

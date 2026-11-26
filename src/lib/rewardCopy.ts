@@ -1,4 +1,5 @@
 import type {
+  FilmMilestoneEvent,
   JourneyRewardEvent,
   JourneySummaryEvent,
   LogMilestoneEvent,
@@ -135,6 +136,25 @@ function milestoneCopy(event: LogMilestoneEvent): Copy {
   }
 }
 
+// Library sizes with a name of their own; the rest are "250 films".
+const FILM_HEADLINES: Record<number, string> = {
+  10: 'Ten films in',
+  50: 'Fifty films',
+  100: 'A hundred films',
+  500: 'Five hundred films',
+  1000: 'The thousand-film library',
+}
+
+function filmMilestoneCopy(event: FilmMilestoneEvent): Copy {
+  const { milestone, count, next_at: nextAt } = event
+  const next = nextAt === null ? 'That was the last milestone. Legendary.' : `Next stop: ${nextAt}.`
+  return {
+    label: 'Library',
+    headline: FILM_HEADLINES[milestone] ?? films(milestone),
+    body: `${films(count)} in your library, each one counted once. ${next}`,
+  }
+}
+
 // Checkpoints with a name of their own; the rest are "1,000 hours".
 const WATCH_TIME_HEADLINES: Record<number, string> = {
   24: 'A full day of film',
@@ -209,6 +229,8 @@ export function rewardCopy(event: RewardCard): Copy {
       return milestoneCopy(event)
     case 'watch_time':
       return watchTimeCopy(event)
+    case 'film_milestone':
+      return filmMilestoneCopy(event)
     case 'genre_level':
     case 'decade_level':
     case 'keyword_level':

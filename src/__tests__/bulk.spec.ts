@@ -32,6 +32,16 @@ describe('mergeEvents', () => {
     ])
   })
 
+  it('keeps the highest library size from a back-fill in batches', () => {
+    const at = (milestone: number, count: number): RewardEvent => ({
+      kind: 'film_milestone',
+      milestone,
+      count,
+      next_at: null,
+    })
+    expect(mergeEvents([[at(400, 450)], [at(500, 520)], []])).toEqual([at(500, 520)])
+  })
+
   it('keeps the highest watch time checkpoint from a big back-fill', () => {
     const at = (hours: number, total: number): RewardEvent => ({
       kind: 'watch_time',
