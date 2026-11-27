@@ -6,7 +6,7 @@ import LevelPips from '@/components/LevelPips.vue'
 import PassportStamp from '@/components/PassportStamp.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
 import { decadeLabel } from '@/lib/journey'
-import { hoursText, rewardCopy } from '@/lib/rewardCopy'
+import { featStamp, hoursText, rewardCopy } from '@/lib/rewardCopy'
 import { useRewardsStore } from '@/stores/rewards'
 
 // The moment after Done (design.md §6.3): one ticket per change, stacked. Celebrate plays a
@@ -54,12 +54,17 @@ const missionDone = computed(() => {
   const e = current.value
   return e?.kind === 'mission' ? e : null
 })
+const feat = computed(() => {
+  const e = current.value
+  return e?.kind === 'feat' ? e : null
+})
 const setsSummary = computed(() => {
   const e = current.value
   return e?.kind === 'sets_summary' ? e : null
 })
 const icon = computed(() => {
   if (current.value?.kind === 'set_progressed' || setsSummary.value) return 'sparkle'
+  if (feat.value && !feat.value.best) return 'sparkle'
   if (stamp.value || summary.value) return 'globe'
   if (egg.value) return 'egg'
   return 'trophy'
@@ -94,7 +99,7 @@ function celebrate() {
         <article
           :key="`${current.kind}-${rewards.queue.length}`"
           class="card"
-          :class="[current.kind, { leaving: celebrating }]"
+          :class="[current.kind, { leaving: celebrating, best: feat?.best }]"
         >
           <header class="band">
             <AppIcon :name="icon" :size="18" />
@@ -110,6 +115,9 @@ function celebrate() {
             </span>
             <span v-else-if="filmMilestone" class="ticket-no" aria-hidden="true">
               {{ filmMilestone.milestone }} films
+            </span>
+            <span v-else-if="feat" class="ticket-no feat-no" aria-hidden="true">
+              {{ featStamp(feat) }}
             </span>
             <span v-else-if="missionDone" class="ticket-no" aria-hidden="true">
               ✓ {{ missionDone.year ?? 'Done' }}
@@ -292,6 +300,7 @@ function celebrate() {
 .set_polished .band,
 .log_milestone .band,
 .mission .band,
+.feat.best .band,
 .film_milestone .band,
 .watch_time .band {
   background: var(--mustard);
@@ -368,6 +377,12 @@ h2 {
   font-family: var(--ticket-type);
   font-size: 0.8rem;
   color: var(--parchment-muted);
+}
+
+/* Feats: the burst as a stamp ("3 in a day"). A rank again keeps the plain red band. */
+.feat-no {
+  font-size: 1.4rem;
+  text-transform: uppercase;
 }
 
 /* Tickets logged: the milestone as a serial number, typed and stamped in red. */

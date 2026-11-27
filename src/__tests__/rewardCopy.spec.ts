@@ -8,7 +8,7 @@ import type {
   SetRewardEvent,
   WatchTimeEvent,
 } from '@/api/types'
-import { rewardCopy } from '@/lib/rewardCopy'
+import { featStamp, rewardCopy } from '@/lib/rewardCopy'
 
 const event = (overrides: Partial<SetRewardEvent>): SetRewardEvent => ({
   kind: 'set_progressed',
@@ -205,5 +205,40 @@ describe('rewardCopy for easter eggs', () => {
 
   it('names the film when the egg has no lore yet', () => {
     expect(rewardCopy(egg({ lore: null })).body).toBe('You found it with Die Hard.')
+  })
+})
+
+describe('rewardCopy for feats', () => {
+  const feat = {
+    kind: 'feat' as const,
+    feat: 'day' as const,
+    level: 3,
+    name: 'Trilogy Mode',
+    line: 'Beginning, middle, end. All of them today.',
+    best: true,
+    times: 1,
+    on: '2026-11-27',
+  }
+
+  it('celebrates a new best with its line', () => {
+    expect(rewardCopy(feat)).toEqual({
+      label: 'Feat',
+      headline: 'Trilogy Mode',
+      body: 'Beginning, middle, end. All of them today.',
+    })
+  })
+
+  it('counts a rank reached again', () => {
+    expect(rewardCopy({ ...feat, best: false, times: 4 })).toEqual({
+      label: 'Feat again',
+      headline: 'Trilogy Mode again',
+      body: "That's ×4. Beginning, middle, end. All of them today.",
+    })
+  })
+
+  it('stamps the burst', () => {
+    expect(featStamp({ feat: 'day', level: 3 })).toBe('3 in a day')
+    expect(featStamp({ feat: 'day', level: 7 })).toBe('7+ in a day')
+    expect(featStamp({ feat: 'week', level: 21 })).toBe('21+ in a week')
   })
 })

@@ -1,6 +1,7 @@
 import type {
   EggEvent,
   MissionEvent,
+  FeatEvent,
   FilmMilestoneEvent,
   JourneyRewardEvent,
   JourneySummaryEvent,
@@ -155,6 +156,22 @@ function missionCopy(event: MissionEvent): Copy {
   }
 }
 
+function featCopy(event: FeatEvent): Copy {
+  return event.best
+    ? { label: 'Feat', headline: event.name, body: event.line }
+    : {
+        label: 'Feat again',
+        headline: `${event.name} again`,
+        body: `That's ×${event.times}. ${event.line}`,
+      }
+}
+
+/** "2 in a day", "7+ in a day", "21+ in a week": the feat's stamp. */
+export function featStamp(event: Pick<FeatEvent, 'feat' | 'level'>): string {
+  const top = event.feat === 'day' ? 7 : 21
+  return `${event.level}${event.level >= top ? '+' : ''} in a ${event.feat}`
+}
+
 const FILM_HEADLINES: Record<number, string> = {
   10: 'Ten films in',
   50: 'Fifty films',
@@ -253,6 +270,8 @@ export function rewardCopy(event: RewardCard): Copy {
       return eggCopy(event)
     case 'mission':
       return missionCopy(event)
+    case 'feat':
+      return featCopy(event)
     case 'genre_level':
     case 'decade_level':
     case 'keyword_level':

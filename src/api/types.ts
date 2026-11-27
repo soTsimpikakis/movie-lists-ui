@@ -201,6 +201,22 @@ export interface MissionEvent {
   count: number
 }
 
+/** A day or week rank reached by this log: films in one day or week (design.md §6.7). */
+export interface FeatEvent {
+  kind: 'feat'
+  feat: 'day' | 'week'
+  /** The rank's threshold: 2 films in a day, 5 in a week… */
+  level: number
+  name: string
+  line: string
+  /** Higher than any rank before: a full card. Otherwise a small "again" card. */
+  best: boolean
+  /** Days (or weeks) that have reached this rank, this one included. */
+  times: number
+  /** The day, or the week's Monday. */
+  on: string
+}
+
 export interface LevelUp {
   subject: string
   level: number
@@ -221,6 +237,7 @@ export type RewardEvent =
   | SetRewardEvent
   | EggEvent
   | MissionEvent
+  | FeatEvent
   | LogMilestoneEvent
   | FilmMilestoneEvent
   | WatchTimeEvent
@@ -291,6 +308,14 @@ export interface Journey {
     years: number[]
     first_found_at: string
   }[]
+  /** Only the ranks reached, with tallies; the ones to come stay a surprise (§6.7). */
+  feats: { days: FeatTrack; weeks: FeatTrack }
+}
+
+export interface FeatTrack {
+  ranks: { level: number; name: string; times: number }[]
+  /** The best rank's threshold; null before the first. */
+  best: number | null
 }
 
 export interface LoggedWatch extends Watch {

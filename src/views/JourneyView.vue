@@ -114,6 +114,15 @@ const landmarks = computed(() => {
     }))
 })
 
+const featTracks = computed(() => {
+  const feats = journey.value?.feats
+  if (!feats) return []
+  return [
+    { label: 'Days', track: feats.days },
+    { label: 'Weeks', track: feats.weeks },
+  ].filter((t) => t.track.ranks.length)
+})
+
 // Stamps are pressed on a little crooked, each the same way every visit.
 const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3) % 21) - 10
 </script>
@@ -206,6 +215,26 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
             <span class="level-meta" aria-hidden="true">
               <span>{{ l.atText }}</span>
               <span>{{ l.next ? l.nextText : 'All reached ✓' }}</span>
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Feats: only the ranks reached, with tallies; the next is a surprise (§6.7). -->
+      <section v-if="featTracks.length" aria-labelledby="feats">
+        <h3 id="feats">Feats</h3>
+        <ul class="feats">
+          <li v-for="t in featTracks" :key="t.label" class="feat-row">
+            <span class="feat-label">{{ t.label }}</span>
+            <span class="feat-ranks">
+              <span
+                v-for="r in t.track.ranks"
+                :key="r.level"
+                class="feat-rank"
+                :class="{ best: r.level === t.track.best }"
+              >
+                {{ r.name }} <span class="times">×{{ r.times }}</span>
+              </span>
             </span>
           </li>
         </ul>
@@ -496,6 +525,68 @@ h3 {
 
 .landmarks .fill {
   background: var(--mustard);
+}
+
+.feats {
+  list-style: none;
+  margin: 0;
+  padding: 0.2rem 1rem;
+  border: 2px solid var(--ticket-line);
+  border-radius: 0.75rem;
+  background: var(--parchment-paper);
+  color: var(--parchment-ink);
+  filter: var(--ticket-shadow);
+}
+
+.feat-row {
+  display: flex;
+  gap: 0.9rem;
+  align-items: baseline;
+  padding: 0.7rem 0;
+}
+
+.feat-row + .feat-row {
+  border-top: 2px dashed var(--ticket-line);
+}
+
+.feat-label {
+  flex: none;
+  width: 4rem;
+  font-family: var(--ticket-type);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--parchment-muted);
+}
+
+.feat-ranks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.feat-rank {
+  padding: 0.1rem 0.6rem;
+  border: 1.5px solid var(--red);
+  border-radius: 999px;
+  color: var(--red);
+  font-family: var(--ticket-title);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+/* The best rank, stamped in mustard. */
+.feat-rank.best {
+  background: var(--mustard);
+  border-color: var(--mustard);
+  color: var(--on-mustard);
+}
+
+.times {
+  font-family: var(--ticket-type);
+  font-weight: 400;
+  font-size: 0.75rem;
 }
 
 .level-meta {
