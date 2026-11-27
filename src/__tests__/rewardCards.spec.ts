@@ -40,3 +40,19 @@ describe('toCards', () => {
     })
   })
 })
+
+describe('unknown event kinds', () => {
+  it('are left out, so a newer API cannot break the cards', () => {
+    const fromTheFuture = { kind: 'time_travel', year: 1985 } as unknown as SetRewardEvent
+    const known: SetRewardEvent = {
+      kind: 'set_completed',
+      set_id: 1,
+      title: 'Back to the Future',
+      theme_key: null,
+      watched: 3,
+      total: 3,
+      new_films: ['Part III'],
+    }
+    expect(toCards([fromTheFuture, known])).toEqual([known])
+  })
+})
