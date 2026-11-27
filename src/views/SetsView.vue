@@ -10,12 +10,20 @@ import { useSetsStore } from '@/stores/sets'
 // The Sets page is a grid of shelves (Franchises, Directors, Awards), each opening its own
 // page. Sets live in a store, so coming back shows them at once.
 const store = useSetsStore()
-const grid = computed(() => shelves(store.sets ?? []))
-
-/** What's on a shelf, for its tile: groups by name, then lone sets, a few at most. */
-function contents(shelf: ReturnType<typeof shelves>[number]): string[] {
-  return [...shelf.groups.map((g) => g.title), ...shelf.standalone.map((s) => s.title)]
-}
+/** A tile per shelf: its sets done, and what's on it (groups by name, then lone sets). */
+const grid = computed(() =>
+  shelves(store.sets ?? []).map((shelf) => {
+    const names = [...shelf.groups.map((g) => g.title), ...shelf.standalone.map((s) => s.title)]
+    return {
+      kind: shelf.kind,
+      title: shelf.title,
+      total: shelf.sets.length,
+      gold: goldCount(shelf.sets),
+      names: names.slice(0, 4),
+      more: Math.max(0, names.length - 4),
+    }
+  }),
+)
 
 onMounted(() => store.load())
 </script>
@@ -37,27 +45,20 @@ onMounted(() => store.load())
           class="shelf"
           :class="shelf.kind"
           :to="{ name: 'shelf', params: { kind: shelf.kind } }"
-          :aria-label="`${shelf.title}: ${goldCount(shelf.sets)} of ${shelf.sets.length} sets done`"
+          :aria-label="`${shelf.title}: ${shelf.gold} of ${shelf.total} sets done`"
         >
           <span class="band" aria-hidden="true">{{ shelf.title }}</span>
           <span class="body">
             <span class="count">
-              <span class="big">{{ goldCount(shelf.sets) }}</span>
-              <span class="of">of {{ shelf.sets.length }} sets done</span>
+              <span class="big">{{ shelf.gold }}</span>
+              <span class="of">of {{ shelf.total }} sets done</span>
             </span>
-            <TicketProgress
-              class="bar"
-              :watched="goldCount(shelf.sets)"
-              :total="shelf.sets.length"
-              strip
-            />
+            <TicketProgress class="bar" :watched="shelf.gold" :total="shelf.total" strip />
             <span class="names">
-              <span v-for="name in contents(shelf).slice(0, 4)" :key="name" class="name">
+              <span v-for="name in shelf.names" :key="name" class="name">
                 {{ name }}
               </span>
-              <span v-if="contents(shelf).length > 4" class="name more">
-                +{{ contents(shelf).length - 4 }} more
-              </span>
+              <span v-if="shelf.more" class="name more"> +{{ shelf.more }} more </span>
             </span>
           </span>
         </RouterLink>

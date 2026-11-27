@@ -148,12 +148,15 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
       <span v-if="auth.user" class="tag">{{ userTag(auth.user) }}</span>
     </div>
 
+    <!-- Missions first (design.md §6.6, M1); it shows nothing when there are none. Mounted
+    straight away so /missions loads alongside /journey, but shown with the rest. -->
+    <div v-show="journey !== null">
+      <MissionsSection class="missions-top" />
+    </div>
+
     <LoadError v-if="journey === null && loadError" :message="loadError" @retry="load" />
     <p v-else-if="journey === null" class="muted">Loading…</p>
     <template v-else>
-      <!-- Missions first (design.md §6.6, M1); it shows nothing when there are none. -->
-      <MissionsSection class="missions-top" />
-
       <!-- The summary is a ticket stub of big numbers. -->
       <section class="ticket summary" aria-label="Summary">
         <div class="seats">

@@ -104,7 +104,9 @@ export function byDecade(section: Section): Map<number, SetSummary[]> | null {
   const decades = new Map<number, SetSummary[]>()
   section.sets.forEach((set, i) => {
     const decade = Math.floor(years[i]! / 10) * 10
-    decades.set(decade, [...(decades.get(decade) ?? []), set])
+    const sets = decades.get(decade)
+    if (sets) sets.push(set)
+    else decades.set(decade, [set])
   })
   return decades
 }

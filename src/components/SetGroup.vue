@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
+import type { SetSummary } from '@/api/types'
 import SetPile from '@/components/SetPile.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
 import { byDecade, goldCount, type Group, type Section, tileLabel } from '@/lib/sets'
@@ -9,19 +12,40 @@ import { useSetsStore } from '@/stores/sets'
 const props = defineProps<{ group: Group; heading?: boolean }>()
 const store = useSetsStore()
 
-const decadesOf = (section: Section) => byDecade(section)
-const stateKey = (section: Section) => `${props.group.key}/${section.name}`
-
-/** The decade shown for a section of years: the latest until the user picks another. */
-function shownDecade(section: Section, decades: Map<number, unknown>): number | undefined {
-  const all = [...decades.keys()]
-  return store.decades[stateKey(section)] ?? all[all.length - 1]
+interface SectionView {
+  section: Section
+  /** Where the picked decade is kept in the store. */
+  key: string
+  /** A long section of years by decade; null for one shown whole. */
+  decades: Map<number, SetSummary[]> | null
+  /** A tab per decade, with its sets done. */
+  tabs: { decade: number; gold: number }[]
 }
 
-function shown(section: Section) {
-  const decades = decadesOf(section)
-  if (!decades) return section.sets
-  return decades.get(shownDecade(section, decades) ?? NaN) ?? []
+// Worked out once per group, not on every render.
+const sections = computed<SectionView[]>(() =>
+  props.group.sections.map((section) => {
+    const decades = byDecade(section)
+    return {
+      section,
+      key: `${props.group.key}/${section.name}`,
+      decades,
+      tabs: decades
+        ? [...decades].map(([decade, sets]) => ({ decade, gold: goldCount(sets) }))
+        : [],
+    }
+  }),
+)
+const groupGold = computed(() => goldCount(props.group.sets))
+
+/** The decade shown for a section of years: the latest until the user picks another. */
+function shownDecade(view: SectionView): number | undefined {
+  return store.decades[view.key] ?? view.tabs[view.tabs.length - 1]?.decade
+}
+
+function shown(view: SectionView): SetSummary[] {
+  if (!view.decades) return view.section.sets
+  return view.decades.get(shownDecade(view) ?? NaN) ?? []
 }
 </script>
 
@@ -29,35 +53,35 @@ function shown(section: Section) {
   <section class="set-group" :aria-label="group.title">
     <h3 v-if="heading" class="group-title">
       {{ group.title }}
-      <span class="tally">{{ goldCount(group.sets) }} of {{ group.sets.length }} sets done</span>
+      <span class="tally">{{ groupGold }} of {{ group.sets.length }} sets done</span>
     </h3>
     <ul v-if="group.lead" class="piles">
       <li><SetPile :set="group.lead" /></li>
     </ul>
 
-    <template v-for="section in group.sections" :key="section.name">
-      <h4 class="sub">{{ section.name }}</h4>
+    <template v-for="view in sections" :key="view.section.name">
+      <h4 class="sub">{{ view.section.name }}</h4>
       <div
-        v-if="decadesOf(section)"
+        v-if="view.decades"
         class="decade-tabs"
         role="group"
-        :aria-label="`${section.name}: decade`"
+        :aria-label="`${view.section.name}: decade`"
       >
         <button
-          v-for="[d, sets] in decadesOf(section)!"
-          :key="d"
+          v-for="tab in view.tabs"
+          :key="tab.decade"
           type="button"
           class="small"
-          :class="d === shownDecade(section, decadesOf(section)!) ? 'mustard' : 'plain'"
-          :aria-pressed="d === shownDecade(section, decadesOf(section)!)"
-          @click="store.decades[stateKey(section)] = d"
+          :class="tab.decade === shownDecade(view) ? 'mustard' : 'plain'"
+          :aria-pressed="tab.decade === shownDecade(view)"
+          @click="store.decades[view.key] = tab.decade"
         >
-          {{ d }}s
-          <span v-if="goldCount(sets)" class="tab-done">{{ goldCount(sets) }}✓</span>
+          {{ tab.decade }}s
+          <span v-if="tab.gold" class="tab-done">{{ tab.gold }}✓</span>
         </button>
       </div>
       <ul class="stubs">
-        <li v-for="s in shown(section)" :key="s.id">
+        <li v-for="s in shown(view)" :key="s.id">
           <RouterLink
             class="stub-tile"
             :class="s.trophy"
