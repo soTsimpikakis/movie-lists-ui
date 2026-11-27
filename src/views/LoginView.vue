@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -10,23 +11,15 @@ const router = useRouter()
 
 const login = ref('')
 const password = ref('')
-const error = ref('')
-const busy = ref(false)
+const { run, busy, error } = useAsyncAction()
 
-async function submit() {
-  error.value = ''
-  busy.value = true
-  try {
+const submit = () =>
+  run(async () => {
     await auth.login(login.value, password.value)
     const next = typeof route.query.next === 'string' ? route.query.next : '/'
     // Only follow in-app paths, never "//other-site".
     await router.replace(next.startsWith('/') && !next.startsWith('//') ? next : '/')
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    busy.value = false
-  }
-}
+  })
 </script>
 
 <template>

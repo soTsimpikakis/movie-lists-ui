@@ -7,6 +7,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     // Reachable without logging in.
     public?: boolean
+    // Admins only (design.md §6.6); everyone else is sent home.
+    admin?: boolean
   }
 }
 

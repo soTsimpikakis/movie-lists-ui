@@ -182,8 +182,8 @@ const KIND_LABELS: Partial<Record<SetSummary['kind'], string>> = {
 }
 
 .silver {
-  --stub-colour: #c3c7cc;
-  --stub-ink: #2a1a12;
+  --stub-colour: var(--silver);
+  --stub-ink: var(--on-silver);
 }
 
 .gold .stub,

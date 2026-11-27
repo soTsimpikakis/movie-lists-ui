@@ -7,10 +7,11 @@ import AppHeader from '@/components/AppHeader.vue'
 import LoadError from '@/components/LoadError.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import LevelPips from '@/components/LevelPips.vue'
+import LevelTrack from '@/components/LevelTrack.vue'
 import MissionsSection from '@/components/MissionsSection.vue'
 import PassportStamp from '@/components/PassportStamp.vue'
 import { formatDate } from '@/lib/format'
-import { decadeLabel, films, LEVEL_NAMES } from '@/lib/journey'
+import { decadeLabel, fillEras, films, landmarkPercent, nextLabel, toNext } from '@/lib/journey'
 import { hoursText } from '@/lib/rewardCopy'
 import { userTag } from '@/lib/username'
 import { useAuthStore } from '@/stores/auth'
@@ -45,39 +46,12 @@ const topReaction = computed(() => {
   return top ? { ...top, info: reactions.byKey.get(top.name) } : null
 })
 
-/** Progress from this level's threshold to the next, 0–100. */
-function toNext(entry: JourneyLevel): number {
-  if (entry.next_at === null) return 100
-  const from = entry.level_at
-  return Math.min(100, Math.round((100 * (entry.count - from)) / (entry.next_at - from)))
-}
-
-function nextLabel(entry: JourneyLevel): string {
-  if (entry.next_at === null) return 'Top level'
-  return `${entry.next_at - entry.count} to ${LEVEL_NAMES[entry.level]}`
-}
-
 /** Every decade from the 1920s (or earlier, if watched) to now, watched or not. */
-const eras = computed(() => {
-  const watched = new Map((journey.value?.eras ?? []).map((e) => [e.subject, e]))
-  const first = Math.min(1920, ...[...watched.keys()].map(Number))
-  const last = Math.floor(new Date().getFullYear() / 10) * 10
-  const out: JourneyLevel[] = []
-  for (let decade = first; decade <= last; decade += 10) {
-    const key = String(decade)
-    out.push(
-      watched.get(key) ?? {
-        subject: key,
-        count: 0,
-        level: 0,
-        level_name: null,
-        level_at: 0,
-        next_at: 5,
-      },
-    )
-  }
-  return out
-})
+const eras = computed(() => fillEras(journey.value?.eras ?? [], new Date().getFullYear()))
+
+/** What a level row says under its bar: "Buff · 12 films". */
+const levelFrom = (entry: JourneyLevel) =>
+  `${entry.level_name ?? 'Getting started'} · ${films(entry.count)}`
 
 /** The count milestones as bars (Library, Tickets, Watch time), from the last landmark
  * reached to the next; just numbers, so they read at a glance. */
@@ -119,10 +93,7 @@ const landmarks = computed(() => {
       countText: `${l.fmt(l.count)}${l.unit}`,
       atText: l.fmt(l.at),
       nextText: l.next === null ? '' : l.fmt(l.next),
-      percent:
-        l.next === null
-          ? 100
-          : Math.min(100, Math.max(0, ((l.count - l.at) / (l.next - l.at)) * 100)),
+      percent: landmarkPercent(l.count, l.at, l.next),
     }))
 })
 
@@ -158,7 +129,7 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
     <p v-else-if="journey === null" class="muted">Loading…</p>
     <template v-else>
       <!-- The summary is a ticket stub of big numbers. -->
-      <section class="ticket summary" aria-label="Summary">
+      <section class="ticket summary parchment-card" aria-label="Summary">
         <div class="seats">
           <span class="seat">
             <span class="seat-label">Films</span>
@@ -214,32 +185,25 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
       <!-- Landmarks: the count milestones as bars from the last one reached to the next. -->
       <section v-if="landmarks.length" aria-labelledby="landmarks">
         <h3 id="landmarks">Landmarks</h3>
-        <ul class="levels landmarks">
-          <li
+        <ul class="levels landmarks parchment-card">
+          <LevelTrack
             v-for="l in landmarks"
             :key="l.name"
-            class="level-row"
-            :aria-label="`${l.name}: ${l.countText}${l.next ? `, next landmark ${l.nextText}` : ''}`"
+            :name="l.name"
+            :percent="l.percent"
+            :from="l.atText"
+            :to="l.next ? l.nextText : 'All reached ✓'"
+            :label="`${l.name}: ${l.countText}${l.next ? `, next landmark ${l.nextText}` : ''}`"
           >
-            <span class="level-top">
-              <span class="level-name">{{ l.name }}</span>
-              <span class="landmark-count">{{ l.countText }}</span>
-            </span>
-            <span class="bar" aria-hidden="true">
-              <span class="fill" :style="{ width: `${l.percent}%` }" />
-            </span>
-            <span class="level-meta" aria-hidden="true">
-              <span>{{ l.atText }}</span>
-              <span>{{ l.next ? l.nextText : 'All reached ✓' }}</span>
-            </span>
-          </li>
+            <span class="landmark-count">{{ l.countText }}</span>
+          </LevelTrack>
         </ul>
       </section>
 
       <!-- Feats: only the ranks reached, with tallies; the next is a surprise (§6.7). -->
       <section v-if="featTracks.length" aria-labelledby="feats">
         <h3 id="feats">Feats</h3>
-        <ul class="feats">
+        <ul class="feats parchment-card">
           <li v-for="t in featTracks" :key="t.label" class="feat-row">
             <span class="feat-label">{{ t.label }}</span>
             <span class="feat-ranks">
@@ -260,26 +224,23 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
         <section aria-labelledby="expertise">
           <h3 id="expertise">Expertise</h3>
           <p v-if="!journey.expertise.length" class="muted">No genres yet.</p>
-          <ul class="levels">
-            <li v-for="g in journey.expertise" :key="g.subject" class="level-row">
-              <span class="level-top">
-                <span class="level-name">{{ g.subject }}</span>
-                <LevelPips :level="g.level" />
-              </span>
-              <span class="bar" aria-hidden="true">
-                <span class="fill" :style="{ width: `${toNext(g)}%` }" />
-              </span>
-              <span class="level-meta">
-                <span>{{ g.level_name ?? 'Getting started' }} · {{ films(g.count) }}</span>
-                <span>{{ nextLabel(g) }}</span>
-              </span>
-            </li>
+          <ul class="levels parchment-card">
+            <LevelTrack
+              v-for="g in journey.expertise"
+              :key="g.subject"
+              :name="g.subject"
+              :percent="toNext(g)"
+              :from="levelFrom(g)"
+              :to="nextLabel(g)"
+            >
+              <LevelPips :level="g.level" />
+            </LevelTrack>
           </ul>
         </section>
 
         <section aria-labelledby="eras">
           <h3 id="eras">Eras</h3>
-          <ol class="eras">
+          <ol class="eras parchment-card">
             <li
               v-for="e in eras"
               :key="e.subject"
@@ -300,26 +261,23 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
         <p v-if="!journey.niches.length" class="muted">
           No niches yet. Heists, spy films, musicals, anime and more each have a track here.
         </p>
-        <ul class="levels niches">
-          <li v-for="n in journey.niches" :key="n.subject" class="level-row">
-            <span class="level-top">
-              <span class="level-name">{{ n.subject }}</span>
-              <LevelPips :level="n.level" />
-            </span>
-            <span class="bar" aria-hidden="true">
-              <span class="fill" :style="{ width: `${toNext(n)}%` }" />
-            </span>
-            <span class="level-meta">
-              <span>{{ n.level_name ?? 'Getting started' }} · {{ films(n.count) }}</span>
-              <span>{{ nextLabel(n) }}</span>
-            </span>
-          </li>
+        <ul class="levels niches parchment-card">
+          <LevelTrack
+            v-for="n in journey.niches"
+            :key="n.subject"
+            :name="n.subject"
+            :percent="toNext(n)"
+            :from="levelFrom(n)"
+            :to="nextLabel(n)"
+          >
+            <LevelPips :level="n.level" />
+          </LevelTrack>
         </ul>
       </section>
 
       <section aria-labelledby="passport">
         <h3 id="passport">Passport</h3>
-        <div class="passport">
+        <div class="passport parchment-card">
           <p v-if="!journey.passport.length" class="muted">
             No stamps yet. Every country you watch a film from gets one.
           </p>
@@ -336,7 +294,7 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
         <ul class="trophies">
           <li v-for="t in journey.trophies" :key="t.set_id">
             <RouterLink
-              class="trophy"
+              class="trophy parchment-card"
               :class="t.trophy"
               :to="{ name: 'set', params: { id: t.set_id } }"
             >
@@ -355,7 +313,7 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
           Easter eggs <span class="found">{{ journey.eggs.length }} found</span>
         </h3>
         <ul class="eggs">
-          <li v-for="e in journey.eggs" :key="e.key" class="egg">
+          <li v-for="e in journey.eggs" :key="e.key" class="egg parchment-card">
             <span class="egg-body">
               <span class="egg-title">{{ e.title }}</span>
               <span v-if="e.lore" class="egg-lore">{{ e.lore }}</span>
@@ -404,11 +362,7 @@ h3 {
 .passport,
 .levels,
 .eras {
-  border: 2px solid var(--ticket-line);
   border-radius: 0.75rem;
-  background: var(--parchment-paper);
-  color: var(--parchment-ink);
-  filter: var(--ticket-shadow);
 }
 
 .summary {
@@ -490,47 +444,10 @@ h3 {
   padding: 0.4rem 1rem;
 }
 
-.level-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.7rem 0;
-}
-
-.level-row + .level-row {
-  border-top: 2px dashed var(--ticket-line);
-}
-
-.level-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.level-name {
-  font-family: var(--ticket-title);
-  font-weight: 700;
-}
-
 .levels,
 .eras {
   --pip-on: var(--red);
   --pip-off: var(--parchment-muted);
-}
-
-.bar {
-  height: 0.45rem;
-  border-radius: 999px;
-  background: rgb(120 80 30 / 0.18);
-  overflow: hidden;
-}
-
-.fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--red);
 }
 
 .landmark-count {
@@ -539,19 +456,15 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
-.landmarks .fill {
-  background: var(--mustard);
+.landmarks {
+  --track-fill: var(--mustard);
 }
 
 .feats {
   list-style: none;
   margin: 0;
   padding: 0.2rem 1rem;
-  border: 2px solid var(--ticket-line);
   border-radius: 0.75rem;
-  background: var(--parchment-paper);
-  color: var(--parchment-ink);
-  filter: var(--ticket-shadow);
 }
 
 .feat-row {
@@ -603,15 +516,6 @@ h3 {
   font-family: var(--ticket-type);
   font-weight: 400;
   font-size: 0.75rem;
-}
-
-.level-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  font-family: var(--ticket-type);
-  font-size: 0.75rem;
-  color: var(--parchment-muted);
 }
 
 .eras {
@@ -695,12 +599,8 @@ h3 {
 .trophy {
   display: flex;
   align-items: stretch;
-  border: 2px solid var(--ticket-line);
   border-radius: 0.6rem;
-  background: var(--parchment-paper);
-  color: var(--parchment-ink);
   text-decoration: none;
-  filter: var(--ticket-shadow);
   overflow: hidden;
 }
 
@@ -744,11 +644,7 @@ h3 {
 .egg {
   display: flex;
   align-items: stretch;
-  border: 2px solid var(--ticket-line);
   border-radius: 0.6rem;
-  background: var(--parchment-paper);
-  color: var(--parchment-ink);
-  filter: var(--ticket-shadow);
   overflow: hidden;
 }
 
@@ -792,8 +688,8 @@ h3 {
 }
 
 .silver .trophy-stub {
-  background: #c3c7cc;
-  color: #2a1a12;
+  background: var(--silver);
+  color: var(--on-silver);
 }
 
 @media (min-width: 900px) {
@@ -816,6 +712,7 @@ h3 {
     column-gap: 1.5rem;
   }
 
+  /* The rows are LevelTracks: their root takes this view's scoped styles too. */
   .niches .level-row:nth-child(2) {
     border-top: 0;
   }

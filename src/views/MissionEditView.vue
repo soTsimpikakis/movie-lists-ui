@@ -1,39 +1,35 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, reactive, ref } from 'vue'
 
-import { api, del, post, put } from '@/api/client'
+import { api, errorText, post } from '@/api/client'
 import type {
   AdminMission,
   Genre,
   GoalKind,
   MissionCheck,
   MissionEvent,
+  MissionGoal,
   MissionInput,
   SetSummary,
 } from '@/api/types'
 import AdminFilmPicker, { type PickedFilm } from '@/components/AdminFilmPicker.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
-import { keyFrom } from '@/lib/eggs'
+import ChoiceGroup from '@/components/ChoiceGroup.vue'
+import PublishActions from '@/components/PublishActions.vue'
+import StatusPill from '@/components/StatusPill.vue'
+import { useAdminRecord } from '@/composables/useAdminRecord'
 import { formatDate } from '@/lib/format'
 import { seasonText } from '@/lib/missions'
 import { useRewardsStore } from '@/stores/rewards'
 
 // One mission (design.md §6.6): write it, test it, then enable it. A new mission is a draft.
 // Switching it off ends it quietly for everyone; people who finished it keep it.
-const route = useRoute()
-const router = useRouter()
 const rewards = useRewardsStore()
 
-const id = computed(() => (route.params.id ? Number(route.params.id) : null))
-const mission = ref<AdminMission | null>(null)
 const genres = ref<Genre[]>([])
 const sets = ref<SetSummary[]>([])
 const loading = ref(true)
-const error = ref('')
-const status = ref('')
-const busy = ref(false)
 
 const year = new Date().getFullYear()
 const form = reactive({
@@ -58,60 +54,80 @@ const form = reactive({
   setId: 0,
   rewatchesCount: false,
 })
-const keyTouched = ref(false)
-watch(
-  () => form.title,
-  (title) => {
-    if (!keyTouched.value && !mission.value?.key_locked) form.key = keyFrom(title)
+
+const GOAL_KINDS = [
+  { value: 'count_matching', label: 'N films of a genre or keyword' },
+  { value: 'all_of_list', label: 'All of a list' },
+  { value: 'count_of_list', label: 'N of a list' },
+] as const
+const COUNTING = [
+  { value: 'keyword', label: 'A keyword (Christmas…)' },
+  { value: 'genre', label: 'A genre' },
+] as const
+const LIST_FROM = [
+  { value: 'films', label: 'Films I pick' },
+  { value: 'set', label: 'A set' },
+] as const
+
+const {
+  id,
+  record: mission,
+  load,
+  keyEdited,
+  act,
+  busy,
+  error,
+  status,
+  save: saveBody,
+  enable,
+  disable,
+  remove,
+} = useAdminRecord<AdminMission>({
+  path: '/admin/missions',
+  routes: { one: 'admin-mission', list: 'admin-missions' },
+  form,
+  switchedOff: 'Switched off: it has ended quietly for everyone',
+  fill: (from) => {
+    const g = from.goal
+    Object.assign(form, {
+      title: from.title,
+      key: from.key,
+      description: from.description,
+      finishCopy: from.finish_copy ?? '',
+      notes: from.notes ?? '',
+      openEnded: from.starts_on === null,
+      startsOn: from.starts_on ?? form.startsOn,
+      endsOn: from.ends_on ?? form.endsOn,
+      repeatsYearly: from.repeats_yearly,
+      joinUntil: from.join_until ?? '',
+      announceFrom: from.announce_from ?? '',
+      kind: g.kind,
+      count: g.count ?? form.count,
+      countWhat: g.genre ? 'genre' : 'keyword',
+      genre: g.genre ?? '',
+      keyword: g.keyword ?? 0,
+      listFrom: from.set_id ? 'set' : 'films',
+      films: from.films.map((f) => ({ ...f })),
+      setId: from.set_id ?? 0,
+      rewatchesCount: from.rewatches_count,
+    })
   },
-)
+})
 
 const realGenres = computed(() => genres.value.filter((g) => !g.keyword))
 const keywords = computed(() => genres.value.filter((g) => g.keyword))
 
-function load(from: AdminMission) {
-  mission.value = from
-  keyTouched.value = true
-  const g = from.goal
-  Object.assign(form, {
-    title: from.title,
-    key: from.key,
-    description: from.description,
-    finishCopy: from.finish_copy ?? '',
-    notes: from.notes ?? '',
-    openEnded: from.starts_on === null,
-    startsOn: from.starts_on ?? form.startsOn,
-    endsOn: from.ends_on ?? form.endsOn,
-    repeatsYearly: from.repeats_yearly,
-    joinUntil: from.join_until ?? '',
-    announceFrom: from.announce_from ?? '',
-    kind: g.kind,
-    count: g.count ?? form.count,
-    countWhat: g.genre ? 'genre' : 'keyword',
-    genre: g.genre ?? '',
-    keyword: g.keyword ?? 0,
-    listFrom: from.set_id ? 'set' : 'films',
-    films: from.films.map((f) => ({ ...f })),
-    setId: from.set_id ?? 0,
-    rewatchesCount: from.rewatches_count,
-  })
-}
-
 const body = computed<MissionInput>(() => {
-  const listed = form.kind !== 'count_matching'
-  const fromSet = listed && form.listFrom === 'set'
-  const goal =
-    form.kind === 'count_matching'
-      ? {
-          kind: form.kind,
-          count: form.count,
-          ...(form.countWhat === 'genre' ? { genre: form.genre } : { keyword: form.keyword }),
-        }
-      : {
-          kind: form.kind,
-          ...(form.kind === 'count_of_list' ? { count: form.count } : {}),
-          ...(fromSet ? {} : { films: form.films.map((f) => f.tmdb_id) }),
-        }
+  const fromSet = form.kind !== 'count_matching' && form.listFrom === 'set'
+  const films = fromSet ? {} : { films: form.films.map((f) => f.tmdb_id) }
+  let goal: MissionGoal
+  if (form.kind === 'count_matching')
+    goal =
+      form.countWhat === 'genre'
+        ? { kind: form.kind, count: form.count, genre: form.genre }
+        : { kind: form.kind, count: form.count, keyword: form.keyword }
+  else if (form.kind === 'count_of_list') goal = { kind: form.kind, count: form.count, ...films }
+  else goal = { kind: form.kind, ...films }
   return {
     key: form.key,
     title: form.title.trim(),
@@ -145,41 +161,7 @@ const missing = computed(() => {
   return null
 })
 
-async function act(work: () => Promise<void>, done: string) {
-  error.value = ''
-  status.value = ''
-  busy.value = true
-  try {
-    await work()
-    status.value = done
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    busy.value = false
-  }
-}
-
-const save = () =>
-  act(async () => {
-    if (id.value === null) {
-      const created = await post<AdminMission>('/admin/missions', body.value)
-      load(created)
-      await router.replace({ name: 'admin-mission', params: { id: created.id } })
-    } else load(await put<AdminMission>(`/admin/missions/${id.value}`, body.value))
-  }, 'Saved')
-const enable = () =>
-  act(async () => load(await post<AdminMission>(`/admin/missions/${id.value}/enable`)), 'Live')
-const disable = () =>
-  act(
-    async () => load(await post<AdminMission>(`/admin/missions/${id.value}/disable`)),
-    'Switched off: it has ended quietly for everyone',
-  )
-const confirmDelete = ref(false)
-const remove = () =>
-  act(async () => {
-    await del(`/admin/missions/${id.value}`)
-    await router.push({ name: 'admin-missions' })
-  }, 'Deleted')
+const save = () => saveBody(body.value)
 
 function showCard() {
   const event: MissionEvent = {
@@ -207,7 +189,7 @@ onMounted(async () => {
     ])
     if (id.value !== null) load(await api<AdminMission>(`/admin/missions/${id.value}`))
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    error.value = errorText(e)
   } finally {
     loading.value = false
   }
@@ -226,7 +208,7 @@ onMounted(async () => {
     <template v-else>
       <div class="heading">
         <h2>{{ mission ? mission.title : 'New mission' }}</h2>
-        <span v-if="mission" class="pill" :class="mission.status">{{ mission.status }}</span>
+        <StatusPill v-if="mission" :status="mission.status" />
         <span v-if="mission" class="muted">
           {{ mission.joined }} in this season · done {{ mission.finished }}×
         </span>
@@ -246,7 +228,7 @@ onMounted(async () => {
               maxlength="40"
               pattern="[a-z0-9]+(-[a-z0-9]+)*"
               :disabled="mission?.key_locked"
-              @input="keyTouched = true"
+              @input="keyEdited"
             />
             <span class="hint">{{
               mission?.key_locked
@@ -311,43 +293,13 @@ onMounted(async () => {
           </p>
 
           <span class="label">Goal</span>
-          <div class="choice" role="radiogroup" aria-label="Goal">
-            <button
-              v-for="k in [
-                ['count_matching', 'N films of a genre or keyword'],
-                ['all_of_list', 'All of a list'],
-                ['count_of_list', 'N of a list'],
-              ] as const"
-              :key="k[0]"
-              type="button"
-              role="radio"
-              class="small"
-              :class="form.kind === k[0] ? 'mustard' : 'plain'"
-              :aria-checked="form.kind === k[0]"
-              @click="form.kind = k[0]"
-            >
-              {{ k[1] }}
-            </button>
-          </div>
+          <ChoiceGroup v-model="form.kind" label="Goal" :options="GOAL_KINDS" />
           <label v-if="form.kind !== 'all_of_list'">
             How many films
             <input v-model.number="form.count" type="number" min="1" max="500" class="num" />
           </label>
           <template v-if="form.kind === 'count_matching'">
-            <div class="choice" role="radiogroup" aria-label="Counting">
-              <button
-                v-for="w in ['keyword', 'genre'] as const"
-                :key="w"
-                type="button"
-                role="radio"
-                class="small"
-                :class="form.countWhat === w ? 'mustard' : 'plain'"
-                :aria-checked="form.countWhat === w"
-                @click="form.countWhat = w"
-              >
-                {{ w === 'keyword' ? 'A keyword (Christmas…)' : 'A genre' }}
-              </button>
-            </div>
+            <ChoiceGroup v-model="form.countWhat" label="Counting" :options="COUNTING" />
             <label v-if="form.countWhat === 'genre'">
               Genre
               <select v-model="form.genre">
@@ -364,20 +316,7 @@ onMounted(async () => {
             </label>
           </template>
           <template v-else>
-            <div class="choice" role="radiogroup" aria-label="List">
-              <button
-                v-for="w in ['films', 'set'] as const"
-                :key="w"
-                type="button"
-                role="radio"
-                class="small"
-                :class="form.listFrom === w ? 'mustard' : 'plain'"
-                :aria-checked="form.listFrom === w"
-                @click="form.listFrom = w"
-              >
-                {{ w === 'films' ? 'Films I pick' : 'A set' }}
-              </button>
-            </div>
+            <ChoiceGroup v-model="form.listFrom" label="List" :options="LIST_FROM" />
             <AdminFilmPicker
               v-if="form.listFrom === 'films'"
               v-model="form.films"
@@ -408,40 +347,16 @@ onMounted(async () => {
             <button type="submit" :disabled="busy || Boolean(missing)" :title="missing ?? ''">
               <AppIcon name="check" :size="14" /> {{ mission ? 'Save' : 'Save as draft' }}
             </button>
-            <template v-if="mission">
-              <button
-                v-if="mission.status !== 'live'"
-                type="button"
-                class="mustard"
-                :disabled="busy"
-                @click="enable"
-              >
-                <AppIcon name="trophy" :size="14" /> Enable
-              </button>
-              <button v-else type="button" class="plain" :disabled="busy" @click="disable">
-                <AppIcon name="eye-off" :size="14" /> Switch off
-              </button>
-              <template v-if="!mission.finished">
-                <button
-                  v-if="!confirmDelete"
-                  type="button"
-                  class="danger"
-                  :disabled="busy"
-                  @click="confirmDelete = true"
-                >
-                  <AppIcon name="trash" :size="14" /> Delete
-                </button>
-                <span v-else class="confirm">
-                  Delete for good?
-                  <button type="button" class="danger small" :disabled="busy" @click="remove">
-                    Delete
-                  </button>
-                  <button type="button" class="plain small" @click="confirmDelete = false">
-                    Keep it
-                  </button>
-                </span>
-              </template>
-            </template>
+            <PublishActions
+              v-if="mission"
+              :status="mission.status"
+              :deletable="!mission.finished"
+              :busy="busy"
+              icon="trophy"
+              @enable="enable"
+              @disable="disable"
+              @remove="remove"
+            />
           </div>
           <p v-if="missing" class="hint">{{ missing }}</p>
           <p v-if="mission && mission.status === 'live'" class="hint">
@@ -541,36 +456,11 @@ onMounted(async () => {
   width: 7rem;
 }
 
-.choice,
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
-}
-
-.confirm {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-weight: 700;
-  color: var(--error);
-}
-
-.pill {
-  padding: 0.1rem 0.6rem;
-  border-radius: 999px;
-  border: 2px solid var(--line);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.pill.live {
-  background: var(--mustard);
-  color: var(--on-mustard);
-  border-color: var(--mustard);
 }
 
 @media (min-width: 900px) {

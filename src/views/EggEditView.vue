@@ -1,37 +1,25 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 
-import { api, del, post, put } from '@/api/client'
-import type { AdminEgg, EggCheck, EggInput, EggTry, Genre } from '@/api/types'
+import { api, errorText, post } from '@/api/client'
+import type { AdminEgg, EggCheck, EggInput, EggMatch, EggTry, Genre } from '@/api/types'
 import AdminFilmPicker, { type PickedFilm } from '@/components/AdminFilmPicker.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import ChoiceGroup from '@/components/ChoiceGroup.vue'
+import PublishActions from '@/components/PublishActions.vue'
+import StatusPill from '@/components/StatusPill.vue'
+import { useAdminRecord } from '@/composables/useAdminRecord'
 import { formatDate, localDay, todayIso } from '@/lib/format'
-import {
-  daysIn,
-  keyFrom,
-  matchKind,
-  MONTHS,
-  previewEvent,
-  whenText,
-  type MatchKind,
-} from '@/lib/eggs'
+import { daysIn, matchKind, MONTHS, previewEvent, whenText, type MatchKind } from '@/lib/eggs'
 import { useRewardsStore } from '@/stores/rewards'
 
 // One easter egg (design.md §6.6): write it, test it (the real card, past matches, "try a
 // log"), then enable it. A new egg is a draft, so an idea can wait here without its lore.
-const route = useRoute()
-const router = useRouter()
 const rewards = useRewardsStore()
 
-const id = computed(() => (route.params.id ? Number(route.params.id) : null))
-const egg = ref<AdminEgg | null>(null)
 const genres = ref<Genre[]>([])
 const loading = ref(true)
-const error = ref('')
-const status = ref('')
-const busy = ref(false)
 
 const form = reactive({
   title: '',
@@ -53,14 +41,58 @@ const form = reactive({
   minCount: 1,
   repeat: 'yearly' as 'yearly' | 'once',
 })
-// The key follows the title until it's edited by hand or locked.
-const keyTouched = ref(false)
-watch(
-  () => form.title,
-  (title) => {
-    if (!keyTouched.value && !egg.value?.key_locked) form.key = keyFrom(title)
-  },
-)
+
+const REPEATS = [
+  { value: 'yearly', label: 'A stamp every year' },
+  { value: 'once', label: 'Once ever' },
+] as const
+const MATCH_KINDS = [
+  { value: 'film', label: 'A film' },
+  { value: 'films', label: 'A list of films' },
+  { value: 'genre', label: 'A genre' },
+  { value: 'keyword', label: 'A keyword' },
+] as const
+
+const {
+  id,
+  record: egg,
+  load,
+  keyEdited,
+  act,
+  busy,
+  error,
+  status,
+  save: saveBody,
+  enable,
+  disable,
+  remove,
+} = useAdminRecord<AdminEgg>({
+  path: '/admin/eggs',
+  routes: { one: 'admin-egg', list: 'admin' },
+  form,
+  fill: (from) =>
+    Object.assign(form, {
+      title: from.title,
+      key: from.key,
+      lore: from.lore ?? '',
+      hint: from.hint ?? '',
+      notes: from.notes ?? '',
+      startMonth: from.start_month,
+      startDay: from.start_day,
+      endMonth: from.end_month,
+      endDay: from.end_day,
+      singleDay: from.start_month === from.end_month && from.start_day === from.end_day,
+      onlyOneYear: from.only_year !== null,
+      onlyYear: from.only_year ?? new Date().getFullYear(),
+      kind: matchKind(from.match),
+      films: from.films.map((f) => ({ ...f })),
+      genre: from.match.genre ?? '',
+      keyword: from.match.keyword ?? 0,
+      minCount: from.min_count,
+      repeat: from.repeat,
+    }),
+})
+
 watch(
   () => [form.singleDay, form.startMonth, form.startDay],
   () => {
@@ -84,36 +116,12 @@ const realGenres = computed(() => genres.value.filter((g) => !g.keyword))
 const keywords = computed(() => genres.value.filter((g) => g.keyword))
 const days = (month: number) => Array.from({ length: daysIn(month) }, (_, i) => i + 1)
 
-function load(from: AdminEgg) {
-  egg.value = from
-  keyTouched.value = true
-  Object.assign(form, {
-    title: from.title,
-    key: from.key,
-    lore: from.lore ?? '',
-    hint: from.hint ?? '',
-    notes: from.notes ?? '',
-    startMonth: from.start_month,
-    startDay: from.start_day,
-    endMonth: from.end_month,
-    endDay: from.end_day,
-    singleDay: from.start_month === from.end_month && from.start_day === from.end_day,
-    onlyOneYear: from.only_year !== null,
-    onlyYear: from.only_year ?? new Date().getFullYear(),
-    kind: matchKind(from.match),
-    films: from.films.map((f) => ({ ...f })),
-    genre: from.match.genre ?? '',
-    keyword: from.match.keyword ?? 0,
-    minCount: from.min_count,
-    repeat: from.repeat,
-  })
-}
-
 const body = computed<EggInput>(() => {
   const ids = form.films.map((f) => f.tmdb_id)
-  const match =
+  // Saving and testing wait for the film (`missing`), so a film match has one by then.
+  const match: EggMatch =
     form.kind === 'film'
-      ? { film: ids[0] }
+      ? { film: ids[0]! }
       : form.kind === 'films'
         ? { films: ids }
         : form.kind === 'genre'
@@ -147,40 +155,7 @@ const missing = computed(() => {
   return null
 })
 
-async function act(work: () => Promise<void>, done: string) {
-  error.value = ''
-  status.value = ''
-  busy.value = true
-  try {
-    await work()
-    status.value = done
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    busy.value = false
-  }
-}
-
-const save = () =>
-  act(async () => {
-    if (id.value === null) {
-      const created = await post<AdminEgg>('/admin/eggs', body.value)
-      load(created)
-      await router.replace({ name: 'admin-egg', params: { id: created.id } })
-    } else load(await put<AdminEgg>(`/admin/eggs/${id.value}`, body.value))
-  }, 'Saved')
-
-const enable = () =>
-  act(async () => load(await post<AdminEgg>(`/admin/eggs/${id.value}/enable`)), 'Live')
-const disable = () =>
-  act(async () => load(await post<AdminEgg>(`/admin/eggs/${id.value}/disable`)), 'Switched off')
-
-const confirmDelete = ref(false)
-const remove = () =>
-  act(async () => {
-    await del(`/admin/eggs/${id.value}`)
-    await router.push({ name: 'admin' })
-  }, 'Deleted')
+const save = () => saveBody(body.value)
 
 // --- testing ---
 function showCard() {
@@ -210,7 +185,7 @@ onMounted(async () => {
     genres.value = await api<Genre[]>('/genres')
     if (id.value !== null) load(await api<AdminEgg>(`/admin/eggs/${id.value}`))
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    error.value = errorText(e)
   } finally {
     loading.value = false
   }
@@ -229,7 +204,7 @@ onMounted(async () => {
     <template v-else>
       <div class="heading">
         <h2>{{ egg ? egg.title : 'New easter egg' }}</h2>
-        <span v-if="egg" class="pill" :class="egg.status">{{ egg.status }}</span>
+        <StatusPill v-if="egg" :status="egg.status" />
         <span v-if="egg" class="muted">
           found {{ egg.found }}×<template v-if="egg.live_since">
             · live since {{ formatDate(localDay(egg.live_since)) }}</template
@@ -251,7 +226,7 @@ onMounted(async () => {
               maxlength="40"
               pattern="[a-z0-9]+(-[a-z0-9]+)*"
               :disabled="egg?.key_locked"
-              @input="keyTouched = true"
+              @input="keyEdited"
             />
             <span class="hint">
               {{
@@ -314,41 +289,10 @@ onMounted(async () => {
             />
           </div>
           <p class="muted">{{ whenText(body) }}</p>
-          <div class="choice" role="radiogroup" aria-label="Repeat">
-            <button
-              v-for="r in ['yearly', 'once'] as const"
-              :key="r"
-              type="button"
-              role="radio"
-              class="small"
-              :class="form.repeat === r ? 'mustard' : 'plain'"
-              :aria-checked="form.repeat === r"
-              @click="form.repeat = r"
-            >
-              {{ r === 'yearly' ? 'A stamp every year' : 'Once ever' }}
-            </button>
-          </div>
+          <ChoiceGroup v-model="form.repeat" label="Repeat" :options="REPEATS" />
 
           <span class="label">What it matches</span>
-          <div class="choice" role="radiogroup" aria-label="Match">
-            <button
-              v-for="k in [
-                ['film', 'A film'],
-                ['films', 'A list of films'],
-                ['genre', 'A genre'],
-                ['keyword', 'A keyword'],
-              ] as const"
-              :key="k[0]"
-              type="button"
-              role="radio"
-              class="small"
-              :class="form.kind === k[0] ? 'mustard' : 'plain'"
-              :aria-checked="form.kind === k[0]"
-              @click="form.kind = k[0]"
-            >
-              {{ k[1] }}
-            </button>
-          </div>
+          <ChoiceGroup v-model="form.kind" label="Match" :options="MATCH_KINDS" />
           <AdminFilmPicker
             v-if="form.kind === 'film' || form.kind === 'films'"
             v-model="form.films"
@@ -390,40 +334,16 @@ onMounted(async () => {
             <button type="submit" :disabled="busy || Boolean(missing)" :title="missing ?? ''">
               <AppIcon name="check" :size="14" /> {{ egg ? 'Save' : 'Save as draft' }}
             </button>
-            <template v-if="egg">
-              <button
-                v-if="egg.status !== 'live'"
-                type="button"
-                class="mustard"
-                :disabled="busy"
-                @click="enable"
-              >
-                <AppIcon name="egg" :size="14" /> Enable
-              </button>
-              <button v-else type="button" class="plain" :disabled="busy" @click="disable">
-                <AppIcon name="eye-off" :size="14" /> Switch off
-              </button>
-              <template v-if="!egg.found">
-                <button
-                  v-if="!confirmDelete"
-                  type="button"
-                  class="danger"
-                  :disabled="busy"
-                  @click="confirmDelete = true"
-                >
-                  <AppIcon name="trash" :size="14" /> Delete
-                </button>
-                <span v-else class="confirm">
-                  Delete for good?
-                  <button type="button" class="danger small" :disabled="busy" @click="remove">
-                    Delete
-                  </button>
-                  <button type="button" class="plain small" @click="confirmDelete = false">
-                    Keep it
-                  </button>
-                </span>
-              </template>
-            </template>
+            <PublishActions
+              v-if="egg"
+              :status="egg.status"
+              :deletable="!egg.found"
+              :busy="busy"
+              icon="egg"
+              @enable="enable"
+              @disable="disable"
+              @remove="remove"
+            />
           </div>
           <p v-if="missing" class="hint">{{ missing }}</p>
           <p v-if="egg && egg.status !== 'live'" class="hint">
@@ -557,36 +477,11 @@ onMounted(async () => {
   width: 7rem;
 }
 
-.choice,
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
-}
-
-.confirm {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-weight: 700;
-  color: var(--error);
-}
-
-.pill {
-  padding: 0.1rem 0.6rem;
-  border-radius: 999px;
-  border: 2px solid var(--line);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.pill.live {
-  background: var(--mustard);
-  color: var(--on-mustard);
-  border-color: var(--mustard);
 }
 
 table {

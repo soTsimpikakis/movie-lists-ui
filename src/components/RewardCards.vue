@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 
+import type { RewardCard } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
 import LevelPips from '@/components/LevelPips.vue'
 import PassportStamp from '@/components/PassportStamp.vue'
@@ -22,53 +23,24 @@ useDialogFocus(
   () => rewards.next(),
 )
 
-// The current card, narrowed to the kind of event it shows.
-const setEvent = computed(() => {
-  const e = current.value
-  return e && 'set_id' in e ? e : null
-})
-const levelEvent = computed(() => {
-  const e = current.value
-  return e && (e.kind === 'genre_level' || e.kind === 'decade_level' || e.kind === 'keyword_level')
-    ? e
-    : null
-})
-const stamp = computed(() => {
-  const e = current.value
-  return e?.kind === 'country_stamp' ? e : null
-})
-const summary = computed(() => {
-  const e = current.value
-  return e?.kind === 'journey_summary' ? e : null
-})
-const milestone = computed(() => {
-  const e = current.value
-  return e?.kind === 'log_milestone' ? e : null
-})
-const filmMilestone = computed(() => {
-  const e = current.value
-  return e?.kind === 'film_milestone' ? e : null
-})
-const watchTime = computed(() => {
-  const e = current.value
-  return e?.kind === 'watch_time' ? e : null
-})
-const egg = computed(() => {
-  const e = current.value
-  return e?.kind === 'easter_egg' ? e : null
-})
-const missionDone = computed(() => {
-  const e = current.value
-  return e?.kind === 'mission' ? e : null
-})
-const feat = computed(() => {
-  const e = current.value
-  return e?.kind === 'feat' ? e : null
-})
-const setsSummary = computed(() => {
-  const e = current.value
-  return e?.kind === 'sets_summary' ? e : null
-})
+/** The current card when it's one of these kinds, narrowed to them; otherwise null. */
+function currentOf<K extends RewardCard['kind']>(...kinds: K[]) {
+  return computed(() => {
+    const e = current.value
+    return e && (kinds as string[]).includes(e.kind) ? (e as RewardCard & { kind: K }) : null
+  })
+}
+const setEvent = currentOf('set_progressed', 'set_completed', 'set_polished')
+const levelEvent = currentOf('genre_level', 'decade_level', 'keyword_level')
+const stamp = currentOf('country_stamp')
+const summary = currentOf('journey_summary')
+const milestone = currentOf('log_milestone')
+const filmMilestone = currentOf('film_milestone')
+const watchTime = currentOf('watch_time')
+const egg = currentOf('easter_egg')
+const missionDone = currentOf('mission')
+const feat = currentOf('feat')
+const setsSummary = currentOf('sets_summary')
 const icon = computed(() => {
   if (current.value?.kind === 'set_progressed' || setsSummary.value) return 'sparkle'
   if (feat.value && !feat.value.best) return 'sparkle'

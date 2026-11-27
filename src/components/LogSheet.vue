@@ -7,6 +7,7 @@ import DateField from '@/components/DateField.vue'
 import PosterImage from '@/components/PosterImage.vue'
 import ReactionPicker from '@/components/ReactionPicker.vue'
 import { ordinal, todayIso } from '@/lib/format'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 import { useRewardsStore } from '@/stores/rewards'
 
@@ -22,13 +23,10 @@ const watchedOn = ref(todayIso())
 const undated = ref(false)
 const canUndate = !props.film.watch_count
 const reaction = ref<string | null>(null)
-const busy = ref(false)
-const error = ref('')
+const { run, busy, error } = useAsyncAction()
 
-async function done() {
-  error.value = ''
-  busy.value = true
-  try {
+const done = () =>
+  run(async () => {
     const { events, ...watch } = await post<LoggedWatch>('/watches', {
       tmdb_id: props.film.tmdb_id,
       watched_on: undated.value ? null : watchedOn.value,
@@ -36,12 +34,7 @@ async function done() {
     })
     emit('logged', watch)
     rewards.push(events)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    busy.value = false
-  }
-}
+  })
 </script>
 
 <template>

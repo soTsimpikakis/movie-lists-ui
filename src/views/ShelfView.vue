@@ -56,14 +56,13 @@ onMounted(() => store.load())
       </h2>
 
       <template v-if="tabbed && tab">
-        <div class="group-tabs" role="tablist" :aria-label="shelf.title">
+        <div class="group-tabs" role="group" :aria-label="shelf.title">
           <button
             v-for="g in shelf.groups"
             :key="g.key"
             type="button"
-            role="tab"
             :class="g.key === tab.key ? 'mustard' : 'plain'"
-            :aria-selected="g.key === tab.key"
+            :aria-pressed="g.key === tab.key"
             @click="tab = g"
           >
             {{ g.title }}

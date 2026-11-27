@@ -113,7 +113,9 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
       case 'feat':
         eggs.set(`feat-${event.feat}-${event.level}-${event.on}`, event)
         break
-      default: {
+      case 'set_progressed':
+      case 'set_completed':
+      case 'set_polished': {
         const before = sets.get(event.set_id)
         const best =
           before && SET_RANK[before.kind] > SET_RANK[event.kind] ? before.kind : event.kind
@@ -122,6 +124,13 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
           kind: best,
           new_films: [...(before?.new_films ?? []), ...event.new_films],
         })
+        break
+      }
+      default: {
+        // Every kind is handled above: a new one is a compile error here. At run time (an
+        // event from a newer API) it's left out.
+        const unknown: never = event
+        void unknown
       }
     }
   }

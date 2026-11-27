@@ -139,7 +139,6 @@ function milestoneCopy(event: LogMilestoneEvent): Copy {
   }
 }
 
-// Library sizes with a name of their own; the rest are "250 films".
 function eggCopy(event: EggEvent): Copy {
   return {
     label: 'Easter egg',
@@ -172,6 +171,7 @@ export function featStamp(event: Pick<FeatEvent, 'feat' | 'level'>): string {
   return `${event.level}${event.level >= top ? '+' : ''} in a ${event.feat}`
 }
 
+// Library sizes with a name of their own; the rest are "250 films".
 const FILM_HEADLINES: Record<number, string> = {
   10: 'Ten films in',
   50: 'Fifty films',
@@ -277,7 +277,16 @@ export function rewardCopy(event: RewardCard): Copy {
     case 'keyword_level':
     case 'country_stamp':
       return journeyCopy(event)
-    default:
+    case 'set_progressed':
+    case 'set_completed':
+    case 'set_polished':
       return setCopy(event)
+    default:
+      return unknownKind(event)
   }
+}
+
+/** For the `default` of a switch over every event kind: a new kind is a compile error. */
+export function unknownKind(event: never): never {
+  throw new Error(`Unknown reward event: ${(event as { kind: string }).kind}`)
 }

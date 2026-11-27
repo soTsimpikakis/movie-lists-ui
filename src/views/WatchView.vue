@@ -2,13 +2,14 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { api, del, patch, put } from '@/api/client'
+import { api, del, errorText, patch, put } from '@/api/client'
 import type { Watch } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
 import DateField from '@/components/DateField.vue'
 import PosterImage from '@/components/PosterImage.vue'
 import ReactionPicker from '@/components/ReactionPicker.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import { ordinal } from '@/lib/format'
 
 const route = useRoute()
@@ -19,7 +20,7 @@ const watch = ref<Watch | null>(null)
 const notFound = ref(false)
 const note = ref('')
 const status = ref('')
-const error = ref('')
+const { run, error } = useAsyncAction()
 
 onMounted(async () => {
   try {
@@ -30,16 +31,12 @@ onMounted(async () => {
   }
 })
 
-async function save(changes: Partial<Pick<Watch, 'watched_on' | 'reaction' | 'note'>>) {
-  error.value = ''
-  try {
+const save = (changes: Partial<Pick<Watch, 'watched_on' | 'reaction' | 'note'>>) =>
+  run(async () => {
     watch.value = await patch<Watch>(`/watches/${id}`, changes)
     status.value = 'Saved'
     setTimeout(() => (status.value = ''), 1500)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  }
-}
+  })
 
 function saveNote() {
   if (watch.value && note.value.trim() !== (watch.value.note ?? '')) save({ note: note.value })
@@ -54,7 +51,7 @@ async function toggleFavourite() {
     await (next ? put : del)(`/films/${film.id}/favourite`)
   } catch (e) {
     film.favourite = !next
-    error.value = e instanceof Error ? e.message : String(e)
+    error.value = errorText(e)
   }
 }
 

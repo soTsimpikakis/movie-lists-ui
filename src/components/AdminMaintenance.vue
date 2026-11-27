@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { api, errorText, post } from '@/api/client'
 import type { AdminCommand, AdminJob } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import { formatDate, localDay } from '@/lib/format'
 
 // Maintenance (design.md §6.6): the server commands as buttons, one at a time, each running in
@@ -11,8 +12,7 @@ import { formatDate, localDay } from '@/lib/format'
 // seed file into the repo, which then gets committed and deployed.
 const commands = ref<AdminCommand[]>([])
 const jobs = ref<AdminJob[]>([])
-const error = ref('')
-const starting = ref(false)
+const { run, busy: starting, error } = useAsyncAction()
 const running = computed(() => jobs.value.find((j) => j.status === 'running') ?? null)
 let timer: ReturnType<typeof setTimeout> | undefined
 // Set when the page is left, so a request still in flight doesn't start polling again.
@@ -29,15 +29,7 @@ async function refresh() {
 }
 
 async function start(command: string) {
-  error.value = ''
-  starting.value = true
-  try {
-    await post<AdminJob>('/admin/jobs', { command })
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    starting.value = false
-  }
+  await run(() => post<AdminJob>('/admin/jobs', { command }))
   await refresh()
 }
 

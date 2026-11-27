@@ -205,7 +205,7 @@ function shown(view: SectionView): SetSummary[] {
 
 .stub-tile.silver {
   box-shadow:
-    inset 0 0 0 2px #c3c7cc,
+    inset 0 0 0 2px var(--silver),
     0 1px 1px rgb(42 26 18 / 0.18);
 }
 

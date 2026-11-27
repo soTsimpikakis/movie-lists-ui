@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { goalText, seasonText } from '@/lib/missions'
+import { adminGoalText, goalText, seasonText } from '@/lib/missions'
 import { rewardCopy } from '@/lib/rewardCopy'
 
 describe('missions', () => {
@@ -16,6 +16,25 @@ describe('missions', () => {
     expect(goalText({ ...goal, goal_kind: 'all_of_list', needed: 4 })).toBe('All 4 films')
     expect(goalText({ ...goal, goal_kind: 'count_of_list', needed: 5, listed: 12 })).toBe(
       '5 of these 12 films',
+    )
+  })
+
+  it('names the goal in the admin list, keywords by name', () => {
+    const genres = [
+      { id: 207317, name: 'Christmas', keyword: true },
+      { id: 27, name: 'Horror', keyword: false },
+    ]
+    const keyword = { kind: 'count_matching' as const, count: 3, keyword: 207317 }
+    expect(adminGoalText({ goal: keyword, set_id: null }, genres)).toBe('3 × Christmas')
+    expect(adminGoalText({ goal: keyword, set_id: null })).toBe('3 × keyword 207317')
+    expect(
+      adminGoalText({ goal: { kind: 'count_matching', count: 2, genre: 'Horror' }, set_id: null }),
+    ).toBe('2 × Horror')
+    expect(adminGoalText({ goal: { kind: 'all_of_list', films: [1, 2, 3] }, set_id: null })).toBe(
+      'All of 3 films',
+    )
+    expect(adminGoalText({ goal: { kind: 'count_of_list', count: 5 }, set_id: 7 })).toBe(
+      '5 of a set',
     )
   })
 

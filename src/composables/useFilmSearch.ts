@@ -1,6 +1,6 @@
 import { computed, ref, watch } from 'vue'
 
-import { api } from '@/api/client'
+import { api, errorText } from '@/api/client'
 import type { SearchResult } from '@/api/types'
 
 /** Debounced TMDB search through the API; stale responses are dropped. */
@@ -33,7 +33,7 @@ export function useFilmSearch() {
         error.value = ''
       } catch (e) {
         if (controller.signal.aborted) return
-        error.value = e instanceof Error ? e.message : String(e)
+        error.value = errorText(e)
       }
       searching.value = false
     }, 250)

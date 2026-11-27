@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import { USERNAME_PATTERN, userTag } from '@/lib/username'
 import { useAuthStore } from '@/stores/auth'
 
@@ -15,8 +16,7 @@ const router = useRouter()
 const name = ref('')
 const username = ref('')
 const profileStatus = ref('')
-const profileError = ref('')
-const savingProfile = ref(false)
+const { run: runProfile, busy: savingProfile, error: profileError } = useAsyncAction()
 
 watch(
   () => auth.user,
@@ -31,59 +31,36 @@ const profileChanged = computed(
   () => name.value.trim() !== auth.user?.display_name || username.value !== auth.user?.username,
 )
 
-async function saveProfile() {
-  profileError.value = ''
+function saveProfile() {
   profileStatus.value = ''
-  savingProfile.value = true
-  try {
+  return runProfile(async () => {
     await auth.updateProfile({ display_name: name.value.trim(), username: username.value })
     profileStatus.value = 'Saved'
-  } catch (e) {
-    profileError.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    savingProfile.value = false
-  }
+  })
 }
 
-const settingsError = ref('')
-const savingSettings = ref(false)
+const { run: runSettings, busy: savingSettings, error: settingsError } = useAsyncAction()
 
-async function toggleCelebrations() {
-  settingsError.value = ''
-  savingSettings.value = true
-  try {
-    await auth.updateProfile({ celebrations: !auth.user?.celebrations })
-  } catch (e) {
-    settingsError.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    savingSettings.value = false
-  }
-}
+const toggleCelebrations = () =>
+  runSettings(() => auth.updateProfile({ celebrations: !auth.user?.celebrations }))
 
 const currentPassword = ref('')
 const newPassword = ref('')
 const repeatPassword = ref('')
 const passwordStatus = ref('')
-const passwordError = ref('')
-const savingPassword = ref(false)
+const { run: runPassword, busy: savingPassword, error: passwordError } = useAsyncAction()
 
-async function changePassword() {
-  passwordError.value = ''
+function changePassword() {
   passwordStatus.value = ''
   if (newPassword.value !== repeatPassword.value) {
     passwordError.value = "The new passwords don't match"
     return
   }
-  savingPassword.value = true
-  try {
+  return runPassword(async () => {
     await auth.changePassword(currentPassword.value, newPassword.value)
     currentPassword.value = newPassword.value = repeatPassword.value = ''
     passwordStatus.value = 'Password changed. Your other devices were logged out.'
-  } catch (e) {
-    passwordError.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    savingPassword.value = false
-  }
+  })
 }
 
 async function logout() {
@@ -99,7 +76,7 @@ async function logout() {
     <h2 class="heading">Profile</h2>
     <p v-if="auth.user" class="tag">{{ userTag(auth.user) }}</p>
 
-    <form class="card stack" @submit.prevent="saveProfile">
+    <form class="card parchment-card stack" @submit.prevent="saveProfile">
       <span class="label">You</span>
       <label>
         Name
@@ -125,7 +102,7 @@ async function logout() {
       </button>
     </form>
 
-    <section class="card stack" aria-labelledby="settings-label">
+    <section class="card parchment-card stack" aria-labelledby="settings-label">
       <span id="settings-label" class="label">Settings</span>
       <div class="setting">
         <div>
@@ -152,7 +129,7 @@ async function logout() {
       <p v-if="settingsError" class="error">{{ settingsError }}</p>
     </section>
 
-    <form class="card stack" @submit.prevent="changePassword">
+    <form class="card parchment-card stack" @submit.prevent="changePassword">
       <span class="label">Password</span>
       <label>
         Current password
@@ -222,11 +199,7 @@ async function logout() {
 .card {
   margin-bottom: 1.25rem;
   padding: 1.1rem 1.2rem 1.25rem;
-  border: 2px solid var(--ticket-line);
   border-radius: 0.75rem;
-  background: var(--parchment-paper);
-  color: var(--parchment-ink);
-  filter: var(--ticket-shadow);
 }
 
 .card .label {

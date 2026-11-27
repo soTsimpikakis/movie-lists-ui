@@ -324,7 +324,7 @@ async function onLogged(logged: Watch) {
 }
 
 .progress.silver {
-  color: #c3c7cc;
+  color: var(--silver);
 }
 
 .to-go {

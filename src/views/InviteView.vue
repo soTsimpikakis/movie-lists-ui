@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { api } from '@/api/client'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import { USERNAME_PATTERN, suggestUsername } from '@/lib/username'
 import { useAuthStore } from '@/stores/auth'
 
@@ -16,8 +17,7 @@ const invalid = ref(false)
 const displayName = ref('')
 const username = ref('')
 const password = ref('')
-const error = ref('')
-const busy = ref(false)
+const { run, busy, error } = useAsyncAction()
 
 onMounted(async () => {
   try {
@@ -28,19 +28,12 @@ onMounted(async () => {
   }
 })
 
-async function submit() {
-  error.value = ''
-  busy.value = true
-  try {
+const submit = () =>
+  run(async () => {
     await auth.acceptInvite(token, displayName.value, username.value, password.value)
     // Straight into "Movies I've seen", so the first real screen already has progress (§5.3).
     await router.replace({ name: 'seen', query: { welcome: '1' } })
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    busy.value = false
-  }
-}
+  })
 </script>
 
 <template>

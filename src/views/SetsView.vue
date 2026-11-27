@@ -42,7 +42,7 @@ onMounted(() => store.load())
     <ul v-else class="shelves">
       <li v-for="shelf in grid" :key="shelf.kind">
         <RouterLink
-          class="shelf"
+          class="shelf parchment-card"
           :class="shelf.kind"
           :to="{ name: 'shelf', params: { kind: shelf.kind } }"
           :aria-label="`${shelf.title}: ${shelf.gold} of ${shelf.total} sets done`"
@@ -83,12 +83,8 @@ onMounted(() => store.load())
   display: flex;
   flex-direction: column;
   height: 100%;
-  border: 2px solid var(--ticket-line);
   border-radius: 0.8rem;
-  background: var(--parchment-paper);
-  color: var(--parchment-ink);
   text-decoration: none;
-  filter: var(--ticket-shadow);
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.08s;
   --hole-on: var(--red);

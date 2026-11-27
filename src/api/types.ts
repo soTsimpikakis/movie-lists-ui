@@ -35,7 +35,7 @@ export interface Watch {
   film: Film
 }
 
-/** A page of the Watched list; `next_offset` is null on the last page. */
+/** How many dated watches fall in one month of the diary. */
 export interface MonthCount {
   /** "2026-11" */
   month: string
@@ -58,6 +58,7 @@ export interface LibraryFilm {
   latest_watch_id: number
 }
 
+/** A page of the library; `next_offset` is null on the last page. */
 export interface LibraryPage {
   items: LibraryFilm[]
   next_offset: number | null
@@ -263,57 +264,86 @@ export interface JourneyLevel {
   next_at: number | null
 }
 
+/** A name and how often it came up: the top reaction or genre. */
+export interface Tally {
+  name: string
+  count: number
+}
+
+/** The big numbers at the top of the Journey. */
+export interface JourneySummary {
+  films: number
+  watches: number
+  hours: number
+  this_year: number
+  /** Landmarks: the last milestone reached (0 before the first) and the next (null past
+   * the last). Tickets logged since joining: */
+  logged: number
+  log_milestone_at: number
+  next_log_milestone: number | null
+  /** Library size (`films`): */
+  film_milestone_at: number
+  next_film_milestone: number | null
+  /** Watch time in hours (`hours`): */
+  watch_time_at: number
+  next_watch_time: number | null
+  first_ticket: { title: string; watched_on: string } | null
+  oldest_film: { title: string; year: number } | null
+  top_reaction: Tally | null
+  top_genre: Tally | null
+}
+
+/** A country in the passport. */
+export interface PassportEntry {
+  code: string
+  count: number
+  stamped_at: string | null
+}
+
+/** A set's trophy: gold when complete, silver when a film was added since. */
+export interface Trophy {
+  set_id: number
+  title: string
+  trophy: 'gold' | 'silver'
+  watched: number
+  total: number
+}
+
+/** An easter egg the user found, with its text as it was when found. */
+export interface FoundEgg {
+  key: string
+  title: string
+  lore: string | null
+  hint: string | null
+  /** Years found, for a yearly egg (empty for a once-ever egg). */
+  years: number[]
+  first_found_at: string
+}
+
 /** Everything on the Journey tab. */
 export interface Journey {
-  summary: {
-    films: number
-    watches: number
-    hours: number
-    this_year: number
-    /** Landmarks: the last milestone reached (0 before the first) and the next (null past
-     * the last). Tickets logged since joining: */
-    logged: number
-    log_milestone_at: number
-    next_log_milestone: number | null
-    /** Library size (`films`): */
-    film_milestone_at: number
-    next_film_milestone: number | null
-    /** Watch time in hours (`hours`): */
-    watch_time_at: number
-    next_watch_time: number | null
-    first_ticket: { title: string; watched_on: string } | null
-    oldest_film: { title: string; year: number } | null
-    top_reaction: { name: string; count: number } | null
-    top_genre: { name: string; count: number } | null
-  }
+  summary: JourneySummary
   expertise: JourneyLevel[]
   eras: JourneyLevel[]
   /** Keyword genres (Heist, Spy…) with at least one film. */
   niches: JourneyLevel[]
-  passport: { code: string; count: number; stamped_at: string | null }[]
-  trophies: {
-    set_id: number
-    title: string
-    trophy: 'gold' | 'silver'
-    watched: number
-    total: number
-  }[]
+  passport: PassportEntry[]
+  trophies: Trophy[]
   /** Easter eggs found, newest first. Only found ones: there's no total (design.md §6.6). */
-  eggs: {
-    key: string
-    title: string
-    lore: string | null
-    hint: string | null
-    /** Years found, for a yearly egg (empty for a once-ever egg). */
-    years: number[]
-    first_found_at: string
-  }[]
+  eggs: FoundEgg[]
   /** Only the ranks reached, with tallies; the ones to come stay a surprise (§6.7). */
   feats: { days: FeatTrack; weeks: FeatTrack }
 }
 
+export interface FeatRank {
+  level: number
+  name: string
+  /** Days (or weeks) that reached it. */
+  times: number
+}
+
 export interface FeatTrack {
-  ranks: { level: number; name: string; times: number }[]
+  ranks: FeatRank[]
   /** The best rank's threshold; null before the first. */
   best: number | null
 }
@@ -355,15 +385,16 @@ export interface BrowsePage {
 
 // --- Admin (design.md §6.6) -------------------------------------------------------------
 
-/** Exactly one of these. Films are TMDB ids; a genre is its name; a keyword its TMDB id. */
-export interface EggMatch {
-  film?: number
-  films?: number[]
-  genre?: string
-  keyword?: number
-}
+/** Exactly one of these. Films are TMDB ids; a genre is its name; a keyword its TMDB id.
+ * (The others are typed `never`, so reading any of them on an unnarrowed match is allowed.) */
+export type EggMatch =
+  | { film: number; films?: never; genre?: never; keyword?: never }
+  | { films: number[]; film?: never; genre?: never; keyword?: never }
+  | { genre: string; film?: never; films?: never; keyword?: never }
+  | { keyword: number; film?: never; films?: never; genre?: never }
 
-export type EggStatus = 'draft' | 'live' | 'off'
+/** Where an egg or a mission is: still being written, live, or switched off. */
+export type PublishStatus = 'draft' | 'live' | 'off'
 export type EggRepeat = 'once' | 'yearly'
 
 /** What the egg form sends. */
@@ -385,7 +416,7 @@ export interface EggInput {
 
 export interface AdminEgg extends EggInput {
   id: number
-  status: EggStatus
+  status: PublishStatus
   live_since: string | null
   updated_at: string
   /** Titles for the films a film or list egg names. */
@@ -424,7 +455,7 @@ export interface AdminJob {
 
 // --- Missions (design.md §6.6) ------------------------------------------------------------
 
-export type GoalKind = 'count_matching' | 'all_of_list' | 'count_of_list'
+export type GoalKind = MissionGoal['kind']
 
 /** A live mission, as a user sees it. */
 export interface UserMission {
@@ -453,13 +484,13 @@ export interface MissionsPage {
   finished: { key: string; title: string; year: number | null; earned_at: string }[]
 }
 
-export interface MissionGoal {
-  kind: GoalKind
-  count?: number
-  genre?: string
-  keyword?: number
-  films?: number[]
-}
+/** A list goal's films are its own, or the set's (`set_id`) when it has none. The fields a
+ * kind doesn't take are typed `never`, so reading them on an unnarrowed goal is allowed. */
+export type MissionGoal =
+  | { kind: 'count_matching'; count: number; genre: string; keyword?: never; films?: never }
+  | { kind: 'count_matching'; count: number; keyword: number; genre?: never; films?: never }
+  | { kind: 'all_of_list'; films?: number[]; count?: never; genre?: never; keyword?: never }
+  | { kind: 'count_of_list'; count: number; films?: number[]; genre?: never; keyword?: never }
 
 /** What the mission form sends. */
 export interface MissionInput {
@@ -480,7 +511,7 @@ export interface MissionInput {
 
 export interface AdminMission extends MissionInput {
   id: number
-  status: EggStatus
+  status: PublishStatus
   live_since: string | null
   updated_at: string
   films: { tmdb_id: number; title: string; year: number | null }[]

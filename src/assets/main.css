@@ -33,6 +33,9 @@
   /* Ticket outlines are softer than other lines, and tickets cast a shadow, like paper
      lying on a table. */
   --ticket-line: #8c7560;
+  /* Silver trophies and stubs: a set completed once, with a film added since. */
+  --silver: #c3c7cc;
+  --on-silver: #2a1a12;
   --ticket-shadow: drop-shadow(0 1px 1px rgb(42 26 18 / 0.18))
     drop-shadow(0 4px 6px rgb(42 26 18 / 0.16));
   font-family: 'DM Sans', system-ui, sans-serif;
@@ -235,6 +238,35 @@ button:focus-visible,
 .error {
   color: var(--error);
   margin: 0;
+}
+
+/* A card of ticket paper (Journey, Missions, Sets); the radius is the card's own. */
+.parchment-card {
+  border: 2px solid var(--ticket-line);
+  background: var(--parchment-paper);
+  color: var(--parchment-ink);
+  filter: var(--ticket-shadow);
+}
+
+/* A status in the admin view: draft, live, off. */
+.pill {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  border: 2px solid var(--line);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pill.live {
+  background: var(--mustard);
+  color: var(--on-mustard);
+  border-color: var(--mustard);
+}
+
+.pill.off {
+  color: var(--muted);
 }
 
 /* Poster grids: search results, set pages, "Movies I've seen". */

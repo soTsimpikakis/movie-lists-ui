@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { api, post } from '@/api/client'
+import { api, errorText, post } from '@/api/client'
 import type { MissionEvent, MissionsPage, UserMission } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import { formatDate } from '@/lib/format'
 import { goalText, seasonText } from '@/lib/missions'
 import { useRewardsStore } from '@/stores/rewards'
@@ -14,45 +15,36 @@ import { useRewardsStore } from '@/stores/rewards'
 // countdowns. A mission that runs out just goes; finished ones stay listed underneath.
 const rewards = useRewardsStore()
 const page = ref<MissionsPage | null>(null)
-const error = ref('')
+const { run, error } = useAsyncAction()
+// The mission whose button is working.
 const busy = ref<number | null>(null)
 
 async function load() {
   try {
     page.value = await api<MissionsPage>('/missions')
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    error.value = errorText(e)
   }
 }
 
-async function join(m: UserMission) {
-  error.value = ''
+async function act(m: UserMission, work: () => Promise<unknown>) {
   busy.value = m.id
-  try {
+  await run(async () => {
+    await work()
+    await load()
+  })
+  busy.value = null
+}
+
+const join = (m: UserMission) =>
+  act(m, async () => {
     const joined = await post<{ mission: UserMission; events: MissionEvent[] }>(
       `/missions/${m.id}/join`,
     )
     rewards.push(joined.events)
-    await load()
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    busy.value = null
-  }
-}
+  })
 
-async function leave(m: UserMission) {
-  error.value = ''
-  busy.value = m.id
-  try {
-    await post(`/missions/${m.id}/leave`)
-    await load()
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    busy.value = null
-  }
-}
+const leave = (m: UserMission) => act(m, () => post(`/missions/${m.id}/leave`))
 
 onMounted(load)
 </script>
@@ -62,7 +54,12 @@ onMounted(load)
     <h3 id="missions">Missions</h3>
     <p v-if="error" class="error">{{ error }}</p>
     <ul class="missions">
-      <li v-for="m in page.missions" :key="m.id" class="mission" :class="{ done: m.finished }">
+      <li
+        v-for="m in page.missions"
+        :key="m.id"
+        class="mission parchment-card"
+        :class="{ done: m.finished }"
+      >
         <div class="band">
           <span class="title">{{ m.title }}</span>
           <span class="season">{{ seasonText(m.starts_on, m.ends_on) }}</span>
@@ -91,7 +88,7 @@ onMounted(load)
               <template v-else>{{ m.done }} of {{ m.needed }}</template>
             </p>
           </template>
-          <p v-else-if="m.join_until && m.joinable" class="muted small">
+          <p v-else-if="m.join_until && m.joinable" class="muted join-by">
             Join by {{ formatDate(m.join_until) }}
           </p>
           <div class="actions">
@@ -142,11 +139,7 @@ h3 {
 }
 
 .mission {
-  border: 2px solid var(--ticket-line);
   border-radius: 0.7rem;
-  background: var(--parchment-paper);
-  color: var(--parchment-ink);
-  filter: var(--ticket-shadow);
   overflow: hidden;
 }
 
@@ -234,7 +227,7 @@ h3 {
   font-size: 0.85rem;
 }
 
-.small {
+.join-by {
   font-size: 0.85rem;
   margin: 0;
 }
