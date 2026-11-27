@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import type { JourneyLevel } from '@/api/types'
-import { fillEras, landmarkPercent, nextLabel, toNext } from '@/lib/journey'
+import {
+  countryName,
+  decadeLabel,
+  films,
+  fillEras,
+  landmarkPercent,
+  nextLabel,
+  toNext,
+} from '@/lib/journey'
 
 const level = (fields: Partial<JourneyLevel> = {}): JourneyLevel => ({
   subject: 'Horror',
@@ -68,5 +76,18 @@ describe('journey', () => {
     expect(landmarkPercent(1100, 1000, null)).toBe(100)
     expect(landmarkPercent(3, 5, 10)).toBe(0)
     expect(landmarkPercent(30, 10, 20)).toBe(100)
+  })
+})
+
+describe('journey words', () => {
+  it('names countries, and falls back to the code for one it cannot name', () => {
+    expect(countryName('KR')).toBe('South Korea')
+    expect(countryName('not a code')).toBe('not a code')
+    expect(countryName('')).toBe('')
+  })
+
+  it('counts films and labels decades', () => {
+    expect([films(0), films(1), films(2)]).toEqual(['0 films', '1 film', '2 films'])
+    expect(decadeLabel('1990')).toBe('1990s')
   })
 })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import type { AdminEgg } from '@/api/types'
-import { daysIn, keyFrom, matchKind, matchText, whenText } from '@/lib/eggs'
+import type { AdminEgg, EggInput } from '@/api/types'
+import { daysIn, keyFrom, matchKind, matchText, previewEvent, whenText } from '@/lib/eggs'
 
 const dates = (
   sm: number,
@@ -50,5 +50,46 @@ describe('eggs', () => {
   it('suggests a key from the title', () => {
     expect(keyFrom('Remember, remember!')).toBe('remember-remember')
     expect(keyFrom('Café Society 2')).toBe('cafe-society-2')
+  })
+})
+
+describe('previewEvent', () => {
+  const input = (o: Partial<EggInput> = {}): EggInput => ({
+    key: 'yippee-ki-yay',
+    title: 'Yippee-ki-yay',
+    lore: "  Settled: it's a Christmas movie.  ",
+    hint: '  Nakatomi Plaza  ',
+    notes: null,
+    start_month: 12,
+    start_day: 24,
+    end_month: 12,
+    end_day: 26,
+    only_year: null,
+    match: { film: 562 },
+    min_count: 1,
+    repeat: 'yearly',
+    ...o,
+  })
+
+  it('shows the card a find would, with this year for a yearly egg', () => {
+    expect(previewEvent(input(), 'Die Hard')).toEqual({
+      kind: 'easter_egg',
+      key: 'yippee-ki-yay',
+      title: 'Yippee-ki-yay',
+      lore: "Settled: it's a Christmas movie.",
+      hint: 'Nakatomi Plaza',
+      year: new Date().getFullYear(),
+      film_title: 'Die Hard',
+    })
+  })
+
+  it('uses an anniversary year, and none for a once-ever egg', () => {
+    expect(previewEvent(input({ only_year: 2015 }), 'Die Hard').year).toBe(2015)
+    expect(previewEvent(input({ repeat: 'once' }), 'Die Hard').year).toBeNull()
+  })
+
+  it('fills in a blank title and drops blank lore and hints', () => {
+    const blank = previewEvent(input({ title: '', lore: '   ', hint: null }), 'Die Hard')
+    expect([blank.title, blank.lore, blank.hint]).toEqual(['Untitled egg', null, null])
   })
 })

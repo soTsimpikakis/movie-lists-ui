@@ -241,7 +241,9 @@ function summaryCopy(event: JourneySummaryEvent): Copy {
   return {
     label: 'Your journey',
     headline: "Look how far you've come",
-    body: `Your library earned ${list}. Find them all on the Journey tab.`,
+    body: list
+      ? `Your library earned ${list}. Find them all on the Journey tab.`
+      : 'Find your progress on the Journey tab.',
   }
 }
 

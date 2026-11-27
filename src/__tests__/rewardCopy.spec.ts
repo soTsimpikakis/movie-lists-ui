@@ -4,6 +4,7 @@ import type {
   EggEvent,
   FilmMilestoneEvent,
   JourneyRewardEvent,
+  JourneySummaryEvent,
   LogMilestoneEvent,
   SetRewardEvent,
   WatchTimeEvent,
@@ -240,5 +241,46 @@ describe('rewardCopy for feats', () => {
     expect(featStamp({ feat: 'day', level: 3 })).toBe('3 in a day')
     expect(featStamp({ feat: 'day', level: 7 })).toBe('7+ in a day')
     expect(featStamp({ feat: 'week', level: 21 })).toBe('21+ in a week')
+  })
+})
+
+describe('rewardCopy for summaries', () => {
+  const summary = (o: Partial<JourneySummaryEvent>): JourneySummaryEvent => ({
+    kind: 'journey_summary',
+    stamps: [],
+    genre_levels: [],
+    decade_levels: [],
+    keyword_levels: [],
+    ...o,
+  })
+
+  it('names a single kind of Journey news on its own', () => {
+    expect(rewardCopy(summary({ stamps: ['US'] })).body).toBe(
+      'Your library earned 1 passport stamp. Find them all on the Journey tab.',
+    )
+    const eras = summary({
+      decade_levels: [
+        { subject: '1980', level: 1, level_name: 'Novice' },
+        { subject: '1990', level: 2, level_name: 'Buff' },
+      ],
+    })
+    expect(rewardCopy(eras).body).toBe(
+      'Your library earned 2 era levels. Find them all on the Journey tab.',
+    )
+  })
+
+  it('reads well with nothing in it', () => {
+    const copy = rewardCopy(summary({}))
+    expect(copy.body).toBe('Find your progress on the Journey tab.')
+    expect(copy.body).not.toMatch(/undefined/)
+  })
+
+  it('counts the sets folded into one card', () => {
+    const sets = [1, 2, 3].map((id) => ({ set_id: id, title: `Set ${id}`, watched: 1, total: 5 }))
+    expect(rewardCopy({ kind: 'sets_summary', sets })).toEqual({
+      label: 'Set progress',
+      headline: '3 more sets moved',
+      body: 'Find them all on the Sets tab.',
+    })
   })
 })

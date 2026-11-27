@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { RewardEvent, SetRewardEvent } from '@/api/types'
+import type {
+  EggEvent,
+  FeatEvent,
+  LogMilestoneEvent,
+  MissionEvent,
+  RewardEvent,
+  SetRewardEvent,
+} from '@/api/types'
 import { BATCH, mergeEvents, PartialSaveError, saveSeen } from '@/lib/bulk'
 
 const set = (overrides: Partial<SetRewardEvent>): SetRewardEvent => ({
@@ -157,5 +164,103 @@ describe('saveSeen', () => {
     expect(error).toBeInstanceOf(PartialSaveError)
     expect((error as PartialSaveError).message).toBe('Proxy timeout')
     expect((error as PartialSaveError).saved).toEqual({ added: BATCH, events: [stamp] })
+  })
+})
+
+const egg = (o: Partial<EggEvent> = {}): EggEvent => ({
+  kind: 'easter_egg',
+  key: 'yippee-ki-yay',
+  title: 'Yippee-ki-yay',
+  lore: null,
+  hint: null,
+  year: 2025,
+  film_title: 'Die Hard',
+  ...o,
+})
+
+const mission = (o: Partial<MissionEvent> = {}): MissionEvent => ({
+  kind: 'mission',
+  key: 'christmas-week',
+  title: 'Christmas Week',
+  finish_copy: null,
+  year: 2026,
+  count: 3,
+  ...o,
+})
+
+const feat = (o: Partial<FeatEvent> = {}): FeatEvent => ({
+  kind: 'feat',
+  feat: 'day',
+  level: 3,
+  name: 'Trilogy Mode',
+  line: 'Beginning, middle, end.',
+  best: true,
+  times: 1,
+  on: '2026-11-27',
+  ...o,
+})
+
+const milestone: LogMilestoneEvent = {
+  kind: 'log_milestone',
+  milestone: 10,
+  count: 10,
+  next_at: 50,
+}
+
+describe('mergeEvents across batches', () => {
+  it('has nothing to show for no batches', () => {
+    expect(mergeEvents([])).toEqual([])
+    expect(mergeEvents([[], []])).toEqual([])
+  })
+
+  it('keeps each egg, mission and feat once', () => {
+    const merged = mergeEvents([
+      [egg(), mission(), feat()],
+      [egg(), mission(), feat()],
+    ])
+    expect(merged).toEqual([egg(), mission(), feat()])
+  })
+
+  it('tells apart the same key in another year, and feats on another day or rank', () => {
+    const events = [
+      egg(),
+      egg({ year: 2024 }),
+      mission(),
+      mission({ year: null }),
+      // An egg and a mission may share a key: they're different things.
+      egg({ key: 'christmas-week', year: 2026 }),
+      feat(),
+      feat({ level: 2 }),
+      feat({ on: '2026-11-28' }),
+      feat({ feat: 'week', level: 3 }),
+    ]
+    expect(mergeEvents([events, [...events]])).toEqual(events)
+  })
+
+  it('puts eggs, missions and feats first, then trophies, milestones, the Journey and progress', () => {
+    const merged = mergeEvents([
+      [
+        set({ set_id: 2, title: 'Alien' }),
+        {
+          kind: 'country_stamp',
+          subject: 'KR',
+          level: 1,
+          level_name: null,
+          count: 1,
+          next_at: null,
+        },
+        milestone,
+      ],
+      [set({ kind: 'set_completed', watched: 4 }), feat(), mission(), egg()],
+    ])
+    expect(merged.map((e: RewardEvent) => e.kind)).toEqual([
+      'feat',
+      'mission',
+      'easter_egg',
+      'set_completed',
+      'log_milestone',
+      'journey_summary',
+      'set_progressed',
+    ])
   })
 })
