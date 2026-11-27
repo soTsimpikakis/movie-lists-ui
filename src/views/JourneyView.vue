@@ -67,6 +67,53 @@ const eras = computed(() => {
   return out
 })
 
+/** The count milestones as bars (Library, Tickets, Watch time), from the last landmark
+ * reached to the next; just numbers, so they read at a glance. */
+const landmarks = computed(() => {
+  const s = journey.value?.summary
+  if (!s) return []
+  const hours = (n: number) => `${hoursText(n)} h`
+  const plain = (n: number) => hoursText(n)
+  return [
+    {
+      name: 'Library',
+      count: s.films,
+      at: s.film_milestone_at,
+      next: s.next_film_milestone,
+      fmt: plain,
+      unit: ' films',
+    },
+    {
+      name: 'Tickets',
+      count: s.logged,
+      at: s.log_milestone_at,
+      next: s.next_log_milestone,
+      fmt: plain,
+      unit: ' logged',
+    },
+    {
+      name: 'Watch time',
+      count: s.hours,
+      at: s.watch_time_at,
+      next: s.next_watch_time,
+      fmt: hours,
+      unit: '',
+    },
+  ]
+    .filter((l) => l.count > 0)
+    .map((l) => ({
+      name: l.name,
+      next: l.next,
+      countText: `${l.fmt(l.count)}${l.unit}`,
+      atText: l.fmt(l.at),
+      nextText: l.next === null ? '' : l.fmt(l.next),
+      percent:
+        l.next === null
+          ? 100
+          : Math.min(100, Math.max(0, ((l.count - l.at) / (l.next - l.at)) * 100)),
+    }))
+})
+
 // Stamps are pressed on a little crooked, each the same way every visit.
 const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3) % 21) - 10
 </script>
@@ -126,33 +173,6 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
               {{ topReaction.info?.label ?? topReaction.name }} ×{{ topReaction.count }}
             </dd>
           </div>
-          <div v-if="journey.summary.films">
-            <dt>Library</dt>
-            <dd>
-              {{ films(journey.summary.films) }}
-              <template v-if="journey.summary.next_film_milestone">
-                · next milestone at {{ journey.summary.next_film_milestone }}
-              </template>
-            </dd>
-          </div>
-          <div v-if="journey.summary.logged">
-            <dt>Tickets logged</dt>
-            <dd>
-              {{ journey.summary.logged }}
-              <template v-if="journey.summary.next_log_milestone">
-                · next milestone at {{ journey.summary.next_log_milestone }}
-              </template>
-            </dd>
-          </div>
-          <div v-if="journey.summary.hours">
-            <dt>Watch time</dt>
-            <dd>
-              {{ hoursText(journey.summary.hours) }} hours
-              <template v-if="journey.summary.next_watch_time">
-                · next checkpoint at {{ hoursText(journey.summary.next_watch_time) }}
-              </template>
-            </dd>
-          </div>
           <div v-if="journey.summary.top_genre">
             <dt>Top genre</dt>
             <dd>
@@ -164,6 +184,31 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
         <p v-if="!journey.summary.films" class="empty">
           Your journey starts with your first ticket. Log a film, or tick off ones you've seen.
         </p>
+      </section>
+
+      <!-- Landmarks: the count milestones as bars from the last one reached to the next. -->
+      <section v-if="landmarks.length" aria-labelledby="landmarks">
+        <h3 id="landmarks">Landmarks</h3>
+        <ul class="levels landmarks">
+          <li
+            v-for="l in landmarks"
+            :key="l.name"
+            class="level-row"
+            :aria-label="`${l.name}: ${l.countText}${l.next ? `, next landmark ${l.nextText}` : ''}`"
+          >
+            <span class="level-top">
+              <span class="level-name">{{ l.name }}</span>
+              <span class="landmark-count">{{ l.countText }}</span>
+            </span>
+            <span class="bar" aria-hidden="true">
+              <span class="fill" :style="{ width: `${l.percent}%` }" />
+            </span>
+            <span class="level-meta" aria-hidden="true">
+              <span>{{ l.atText }}</span>
+              <span>{{ l.next ? l.nextText : 'All reached ✓' }}</span>
+            </span>
+          </li>
+        </ul>
       </section>
 
       <div class="columns">
@@ -443,6 +488,16 @@ h3 {
   background: var(--red);
 }
 
+.landmark-count {
+  font-family: var(--ticket-type);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.landmarks .fill {
+  background: var(--mustard);
+}
+
 .level-meta {
   display: flex;
   justify-content: space-between;
@@ -655,6 +710,17 @@ h3 {
   }
 
   .niches .level-row:nth-child(2) {
+    border-top: 0;
+  }
+
+  /* Landmarks side by side, one row of bars. */
+  .landmarks {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 1.5rem;
+  }
+
+  .landmarks .level-row + .level-row {
     border-top: 0;
   }
 }

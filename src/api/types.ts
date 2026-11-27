@@ -253,12 +253,16 @@ export interface Journey {
     watches: number
     hours: number
     this_year: number
-    /** Tickets logged since joining, and the next milestone (null past the last). */
+    /** Landmarks: the last milestone reached (0 before the first) and the next (null past
+     * the last). Tickets logged since joining: */
     logged: number
+    log_milestone_at: number
     next_log_milestone: number | null
-    /** The next library-size milestone (null past the last). */
+    /** Library size (`films`): */
+    film_milestone_at: number
     next_film_milestone: number | null
-    /** The next watch time checkpoint, in hours (null past the last). */
+    /** Watch time in hours (`hours`): */
+    watch_time_at: number
     next_watch_time: number | null
     first_ticket: { title: string; watched_on: string } | null
     oldest_film: { title: string; year: number } | null
