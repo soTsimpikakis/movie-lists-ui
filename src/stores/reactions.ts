@@ -11,11 +11,16 @@ export const useReactionsStore = defineStore('reactions', () => {
   let loading: Promise<void> | null = null
 
   function load() {
-    loading ??= api<Reaction[]>('/reactions').then((reactions) => {
-      // Drop the "draw as colour emoji" selector (U+FE0F) so every reaction can use the
-      // monochrome emoji font, e.g. 🕰️.
-      all.value = reactions.map((r) => ({ ...r, emoji: r.emoji.replace(/️/g, '') }))
-    })
+    loading ??= api<Reaction[]>('/reactions')
+      .then((reactions) => {
+        // Drop the "draw as colour emoji" selector (U+FE0F) so every reaction can use the
+        // monochrome emoji font, e.g. 🕰️.
+        all.value = reactions.map((r) => ({ ...r, emoji: r.emoji.replace(/️/g, '') }))
+      })
+      .catch((e) => {
+        loading = null // so the next call tries again
+        throw e
+      })
     return loading
   }
 

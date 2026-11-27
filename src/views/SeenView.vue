@@ -2,17 +2,18 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { api } from '@/api/client'
+import { api, errorText } from '@/api/client'
 import type { Checklist } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
 import BulkProgress from '@/components/BulkProgress.vue'
+import LoadError from '@/components/LoadError.vue'
 import FilmFilters from '@/components/FilmFilters.vue'
 import PosterTile from '@/components/PosterTile.vue'
 import SearchField from '@/components/SearchField.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
 import { useFilmBrowse } from '@/composables/useFilmBrowse'
 import { useFilmSearch } from '@/composables/useFilmSearch'
-import { saveSeen } from '@/lib/bulk'
+import { PartialSaveError, saveSeen } from '@/lib/bulk'
 import { emptyFilters, type Filters } from '@/lib/filters'
 import { ratingNote } from '@/lib/format'
 import { useRewardsStore } from '@/stores/rewards'
@@ -35,9 +36,20 @@ const { query, results } = search
 const scrolledDown = ref(false)
 const onScroll = () => (scrolledDown.value = window.scrollY > 600)
 
-onMounted(async () => {
+const loadError = ref('')
+
+async function loadChecklist() {
+  loadError.value = ''
+  try {
+    checklist.value = await api<Checklist>('/checklist')
+  } catch (e) {
+    loadError.value = errorText(e)
+  }
+}
+
+onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true })
-  checklist.value = await api<Checklist>('/checklist')
+  loadChecklist()
 })
 
 onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
@@ -135,7 +147,8 @@ async function save() {
     rewards.push(events)
     flash(`Saved ${ids.length} film${ids.length === 1 ? '' : 's'} to your library`)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    if (e instanceof PartialSaveError) rewards.push(e.saved.events)
+    error.value = errorText(e)
   } finally {
     markSaved(ids.slice(0, done))
     busy.value = false
@@ -237,7 +250,8 @@ async function save() {
       </button>
     </section>
 
-    <p v-if="checklist === null" class="muted">Loading…</p>
+    <LoadError v-if="checklist === null && loadError" :message="loadError" @retry="loadChecklist" />
+    <p v-else-if="checklist === null" class="muted">Loading…</p>
     <template v-else-if="!search.active.value && !filtering">
       <section v-for="s in shownSets" :key="s.id">
         <h2>{{ s.title }}</h2>

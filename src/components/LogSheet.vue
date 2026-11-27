@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, useTemplateRef } from 'vue'
 
 import { post } from '@/api/client'
 import type { LoggedWatch, SearchResult, Watch } from '@/api/types'
@@ -7,11 +7,14 @@ import DateField from '@/components/DateField.vue'
 import PosterImage from '@/components/PosterImage.vue'
 import ReactionPicker from '@/components/ReactionPicker.vue'
 import { ordinal, todayIso } from '@/lib/format'
+import { useDialogFocus } from '@/composables/useDialogFocus'
 import { useRewardsStore } from '@/stores/rewards'
 
 const props = defineProps<{ film: SearchResult }>()
 const emit = defineEmits<{ logged: [watch: Watch]; close: [] }>()
 const rewards = useRewardsStore()
+const sheet = useTemplateRef<HTMLElement>('sheet')
+useDialogFocus(sheet, true, () => emit('close'))
 
 const watchedOn = ref(todayIso())
 // No date: a library add ("before Movie Club"), for someone who meant "I've seen this" rather
@@ -43,7 +46,14 @@ async function done() {
 
 <template>
   <div class="backdrop" @click.self="emit('close')">
-    <section class="sheet" role="dialog" aria-modal="true" :aria-label="`Log ${film.title}`">
+    <section
+      ref="sheet"
+      class="sheet"
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+      :aria-label="`Log ${film.title}`"
+    >
       <span class="admit">Admit one</span>
 
       <div class="film">

@@ -7,7 +7,7 @@ import type { AdminEgg, EggCheck, EggInput, EggTry, Genre } from '@/api/types'
 import AdminFilmPicker, { type PickedFilm } from '@/components/AdminFilmPicker.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
-import { formatDate, todayIso } from '@/lib/format'
+import { formatDate, localDay, todayIso } from '@/lib/format'
 import {
   daysIn,
   keyFrom,
@@ -232,7 +232,7 @@ onMounted(async () => {
         <span v-if="egg" class="pill" :class="egg.status">{{ egg.status }}</span>
         <span v-if="egg" class="muted">
           found {{ egg.found }}×<template v-if="egg.live_since">
-            · live since {{ formatDate(egg.live_since.slice(0, 10)) }}</template
+            · live since {{ formatDate(localDay(egg.live_since)) }}</template
           >
         </span>
       </div>

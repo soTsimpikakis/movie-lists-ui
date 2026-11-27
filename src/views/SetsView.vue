@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 
 import AppHeader from '@/components/AppHeader.vue'
+import LoadError from '@/components/LoadError.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
 import { goldCount, shelves } from '@/lib/sets'
 import { useSetsStore } from '@/stores/sets'
@@ -23,7 +24,12 @@ onMounted(() => store.load())
   <main class="page wide">
     <AppHeader />
 
-    <p v-if="store.sets === null" class="muted">Loading…</p>
+    <LoadError
+      v-if="store.sets === null && store.error"
+      :message="store.error"
+      @retry="store.load()"
+    />
+    <p v-else-if="store.sets === null" class="muted">Loading…</p>
     <p v-else-if="!store.sets.length" class="muted">No sets yet.</p>
     <ul v-else class="shelves">
       <li v-for="shelf in grid" :key="shelf.kind">

@@ -2,16 +2,17 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { api } from '@/api/client'
+import { api, ApiError, errorText } from '@/api/client'
 import type { SearchResult, SetDetail, SetFilm, Watch } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
+import LoadError from '@/components/LoadError.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import BulkProgress from '@/components/BulkProgress.vue'
 import FilmTile from '@/components/FilmTile.vue'
 import LogSheet from '@/components/LogSheet.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
 import TmdbCredit from '@/components/TmdbCredit.vue'
-import { saveSeen } from '@/lib/bulk'
+import { PartialSaveError, saveSeen } from '@/lib/bulk'
 import { formatDate } from '@/lib/format'
 import { neighbours, SHELF_TITLES } from '@/lib/sets'
 import { useRewardsStore } from '@/stores/rewards'
@@ -40,12 +41,23 @@ const complete = computed(
 // Upcoming films are listed, but can't be ticked or logged until they're out.
 const upcomingCount = computed(() => set.value?.films.filter((f) => f.upcoming).length ?? 0)
 
+const loadError = ref('')
+// Stepping through sets quickly: only the latest request may update the page.
+let latest = 0
+
 async function load() {
+  const request = ++latest
+  const wanted = id.value
   try {
-    set.value = await api<SetDetail>(`/sets/${id.value}`)
+    const loaded = await api<SetDetail>(`/sets/${wanted}`)
+    if (request !== latest) return
+    set.value = loaded
     notFound.value = false
-  } catch {
-    notFound.value = true
+    loadError.value = ''
+  } catch (e) {
+    if (request !== latest) return
+    notFound.value = e instanceof ApiError && e.status === 404
+    loadError.value = notFound.value ? '' : errorText(e)
   }
 }
 
@@ -113,6 +125,12 @@ async function saveTicked() {
     cancelSelecting()
     flash(`Added ${added} film${added === 1 ? '' : 's'}`)
     await Promise.all([load(), sets.refresh()])
+  } catch (e) {
+    if (e instanceof PartialSaveError) {
+      rewards.push(e.saved.events)
+      await Promise.all([load(), sets.refresh().catch(() => {})])
+    }
+    flash(`Couldn't save them all: ${errorText(e)}`)
   } finally {
     busy.value = false
     progress.value = null
@@ -135,6 +153,7 @@ async function onLogged(logged: Watch) {
     <AppHeader />
 
     <p v-if="notFound" class="muted">This set doesn't exist.</p>
+    <LoadError v-else-if="loadError && !set" :message="loadError" @retry="load" />
     <template v-else-if="set">
       <RouterLink
         v-if="nav"

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { RewardEvent, SetRewardEvent } from '@/api/types'
-import { BATCH, mergeEvents, saveSeen } from '@/lib/bulk'
+import { BATCH, mergeEvents, PartialSaveError, saveSeen } from '@/lib/bulk'
 
 const set = (overrides: Partial<SetRewardEvent>): SetRewardEvent => ({
   kind: 'set_progressed',
@@ -129,5 +129,33 @@ describe('saveSeen', () => {
     expect(fetch).toHaveBeenCalledTimes(3)
     expect(progress).toEqual([0, BATCH, BATCH * 2, ids.length])
     expect(result).toEqual({ added: ids.length, events: [] })
+  })
+
+  it('keeps what earlier batches earned when a later one fails', async () => {
+    const stamp = {
+      kind: 'country_stamp',
+      subject: 'KR',
+      level: 1,
+      level_name: null,
+      count: 1,
+      next_at: null,
+    }
+    let calls = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof globalThis.fetch>().mockImplementation(async () => {
+        calls += 1
+        if (calls === 2)
+          return new Response(JSON.stringify({ detail: 'Proxy timeout' }), { status: 504 })
+        return new Response(JSON.stringify({ added: BATCH, events: [stamp] }), { status: 200 })
+      }),
+    )
+    const ids = Array.from({ length: BATCH * 3 }, (_, i) => i)
+
+    const error = await saveSeen(ids).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(PartialSaveError)
+    expect((error as PartialSaveError).message).toBe('Proxy timeout')
+    expect((error as PartialSaveError).saved).toEqual({ added: BATCH, events: [stamp] })
   })
 })

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { api } from '@/api/client'
+import { api, errorText } from '@/api/client'
 import type { SetSummary } from '@/api/types'
 
 /**
@@ -15,15 +15,23 @@ export const useSetsStore = defineStore('sets', () => {
   const decades = ref<Record<string, number>>({})
   const tabs = ref<Record<string, string>>({})
 
+  // Why the first load failed, if it did (a background refresh failing keeps the old list).
+  const error = ref('')
+
   async function refresh() {
     sets.value = await api<SetSummary[]>('/sets')
+    error.value = ''
   }
 
   /** Waits only when there's nothing to show yet; otherwise refreshes in the background. */
   async function load() {
-    if (sets.value === null) await refresh()
-    else void refresh().catch(() => {})
+    if (sets.value !== null) return void refresh().catch(() => {})
+    try {
+      await refresh()
+    } catch (e) {
+      error.value = errorText(e)
+    }
   }
 
-  return { sets, decades, tabs, refresh, load }
+  return { sets, error, decades, tabs, refresh, load }
 })

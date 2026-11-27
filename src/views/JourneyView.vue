@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import { api } from '@/api/client'
+import { api, errorText } from '@/api/client'
 import type { Journey, JourneyLevel } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
+import LoadError from '@/components/LoadError.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import LevelPips from '@/components/LevelPips.vue'
 import MissionsSection from '@/components/MissionsSection.vue'
@@ -23,9 +24,20 @@ const reactions = useReactionsStore()
 const journey = ref<Journey | null>(null)
 const thisYear = new Date().getFullYear()
 
-onMounted(async () => {
-  reactions.load()
-  journey.value = await api<Journey>('/journey')
+const loadError = ref('')
+
+async function load() {
+  loadError.value = ''
+  try {
+    journey.value = await api<Journey>('/journey')
+  } catch (e) {
+    loadError.value = errorText(e)
+  }
+}
+
+onMounted(() => {
+  reactions.load().catch(() => {}) // the page works without emoji names
+  load()
 })
 
 const topReaction = computed(() => {
@@ -136,7 +148,8 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
       <span v-if="auth.user" class="tag">{{ userTag(auth.user) }}</span>
     </div>
 
-    <p v-if="journey === null" class="muted">Loading…</p>
+    <LoadError v-if="journey === null && loadError" :message="loadError" @retry="load" />
+    <p v-else-if="journey === null" class="muted">Loading…</p>
     <template v-else>
       <!-- Missions first (design.md §6.6, M1); it shows nothing when there are none. -->
       <MissionsSection class="missions-top" />

@@ -17,22 +17,38 @@ import type {
 // and no single request comes near the proxy's time limit (design.md §5.3).
 export const BATCH = 50
 
-/** Save films as seen, `BATCH` at a time; `onProgress(done, total)` after each batch. */
+/** A batch failed: `saved` is what the batches before it added and earned. */
+export class PartialSaveError extends Error {
+  constructor(
+    public readonly saved: SeenResult,
+    public readonly reason: unknown,
+  ) {
+    super(reason instanceof Error ? reason.message : String(reason))
+  }
+}
+
+/** Save films as seen, `BATCH` at a time; `onProgress(done, total)` after each batch.
+ * If a batch fails, throws a PartialSaveError carrying the earlier batches' result. */
 export async function saveSeen(
   tmdbIds: number[],
   onProgress: (done: number, total: number) => void = () => {},
 ): Promise<SeenResult> {
   const batches: SeenResult[] = []
+  const result = (): SeenResult => ({
+    added: batches.reduce((sum, b) => sum + b.added, 0),
+    events: batches.length ? mergeEvents(batches.map((b) => b.events)) : [],
+  })
   onProgress(0, tmdbIds.length)
   for (let start = 0; start < tmdbIds.length; start += BATCH) {
     const ids = tmdbIds.slice(start, start + BATCH)
-    batches.push(await post<SeenResult>('/watches/seen', { tmdb_ids: ids }))
+    try {
+      batches.push(await post<SeenResult>('/watches/seen', { tmdb_ids: ids }))
+    } catch (e) {
+      throw new PartialSaveError(result(), e)
+    }
     onProgress(Math.min(start + BATCH, tmdbIds.length), tmdbIds.length)
   }
-  return {
-    added: batches.reduce((sum, b) => sum + b.added, 0),
-    events: mergeEvents(batches.map((b) => b.events)),
-  }
+  return result()
 }
 
 const SET_RANK = { set_progressed: 0, set_polished: 1, set_completed: 2 } as const

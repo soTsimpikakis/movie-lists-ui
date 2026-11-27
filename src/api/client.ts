@@ -1,3 +1,6 @@
+/** An error's message, for showing to the user. */
+export const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
+
 export class ApiError extends Error {
   constructor(
     public status: number,

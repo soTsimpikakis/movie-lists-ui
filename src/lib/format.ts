@@ -32,3 +32,6 @@ export function ratingNote(average: number, count: number): string | undefined {
         : String(count)
   return `★ ${average.toFixed(1)} · ${votes}`
 }
+
+/** A timestamp's local calendar day as YYYY-MM-DD (not its UTC day), for formatDate. */
+export const localDay = (iso: string) => new Date(iso).toLocaleDateString('en-CA')

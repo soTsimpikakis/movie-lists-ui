@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 
 import AppIcon from '@/components/AppIcon.vue'
 import LevelPips from '@/components/LevelPips.vue'
@@ -7,6 +7,7 @@ import PassportStamp from '@/components/PassportStamp.vue'
 import TicketProgress from '@/components/TicketProgress.vue'
 import { decadeLabel } from '@/lib/journey'
 import { featStamp, hoursText, rewardCopy } from '@/lib/rewardCopy'
+import { useDialogFocus } from '@/composables/useDialogFocus'
 import { useRewardsStore } from '@/stores/rewards'
 
 // The moment after Done (design.md §6.3): one ticket per change, stacked. Celebrate plays a
@@ -14,6 +15,12 @@ import { useRewardsStore } from '@/stores/rewards'
 const rewards = useRewardsStore()
 const current = computed(() => rewards.queue[0])
 const copy = computed(() => current.value && rewardCopy(current.value))
+const stage = useTemplateRef<HTMLElement>('stage')
+useDialogFocus(
+  stage,
+  () => Boolean(current.value),
+  () => rewards.next(),
+)
 
 // The current card, narrowed to the kind of event it shows.
 const setEvent = computed(() => {
@@ -92,7 +99,14 @@ function celebrate() {
 
 <template>
   <div v-if="current && copy" class="backdrop">
-    <section class="stage" role="dialog" aria-modal="true" :aria-label="copy.label">
+    <section
+      ref="stage"
+      class="stage"
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+      :aria-label="copy.label"
+    >
       <div class="pile">
         <span v-if="rewards.queue.length > 2" class="under under-2" aria-hidden="true" />
         <span v-if="rewards.queue.length > 1" class="under under-1" aria-hidden="true" />

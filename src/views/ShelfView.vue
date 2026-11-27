@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
 import AppHeader from '@/components/AppHeader.vue'
+import LoadError from '@/components/LoadError.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import SetGroup from '@/components/SetGroup.vue'
 import SetPile from '@/components/SetPile.vue'
@@ -41,7 +42,12 @@ onMounted(() => store.load())
       <AppIcon name="back" :size="14" /> All sets
     </RouterLink>
 
-    <p v-if="store.sets === null" class="muted">Loading…</p>
+    <LoadError
+      v-if="store.sets === null && store.error"
+      :message="store.error"
+      @retry="store.load()"
+    />
+    <p v-else-if="store.sets === null" class="muted">Loading…</p>
     <p v-else-if="!shelf" class="muted">There are no sets here.</p>
     <template v-else>
       <h2 class="title">

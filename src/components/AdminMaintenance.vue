@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-import { api, post } from '@/api/client'
+import { api, errorText, post } from '@/api/client'
 import type { AdminCommand, AdminJob } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
-import { formatDate } from '@/lib/format'
+import { formatDate, localDay } from '@/lib/format'
 
 // Maintenance (design.md §6.6): the server commands as buttons, one at a time, each running in
 // the background with its output shown here. Import awards stays on the laptop: it writes a
@@ -15,15 +15,17 @@ const error = ref('')
 const starting = ref(false)
 const running = computed(() => jobs.value.find((j) => j.status === 'running') ?? null)
 let timer: ReturnType<typeof setTimeout> | undefined
+// Set when the page is left, so a request still in flight doesn't start polling again.
+let left = false
 
 async function refresh() {
   clearTimeout(timer)
   try {
     jobs.value = await api<AdminJob[]>('/admin/jobs')
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    error.value = errorText(e)
   }
-  if (running.value) timer = setTimeout(refresh, 2000)
+  if (running.value && !left) timer = setTimeout(refresh, 2000)
 }
 
 async function start(command: string) {
@@ -40,13 +42,20 @@ async function start(command: string) {
 }
 
 const time = (iso: string) =>
-  `${formatDate(iso.slice(0, 10))} ${new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+  `${formatDate(localDay(iso))} ${new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
 
 onMounted(async () => {
-  commands.value = await api<AdminCommand[]>('/admin/commands')
+  try {
+    commands.value = await api<AdminCommand[]>('/admin/commands')
+  } catch (e) {
+    error.value = errorText(e)
+  }
   await refresh()
 })
-onBeforeUnmount(() => clearTimeout(timer))
+onBeforeUnmount(() => {
+  left = true
+  clearTimeout(timer)
+})
 </script>
 
 <template>
