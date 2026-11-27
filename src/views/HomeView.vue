@@ -60,7 +60,9 @@ async function onLogged(logged: Watch) {
   picked.value = null
   finding.value = false
   finder.value?.markLogged(logged.film.tmdb_id)
-  toast.value = `Logged ${logged.film.title}`
+  toast.value = logged.watched_on
+    ? `Logged ${logged.film.title}`
+    : `Added ${logged.film.title} to your library`
   setTimeout(() => (toast.value = ''), 2500)
   await loadWatches()
 }

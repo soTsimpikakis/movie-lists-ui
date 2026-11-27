@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { api } from '@/api/client'
-import type { SearchResult, SetDetail, SetFilm } from '@/api/types'
+import type { SearchResult, SetDetail, SetFilm, Watch } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import BulkProgress from '@/components/BulkProgress.vue'
@@ -119,10 +119,13 @@ async function saveTicked() {
   }
 }
 
-async function onLogged() {
-  const title = picked.value?.title
+async function onLogged(logged: Watch) {
   picked.value = null
-  flash(`Logged ${title}`)
+  flash(
+    logged.watched_on
+      ? `Logged ${logged.film.title}`
+      : `Added ${logged.film.title} to your library`,
+  )
   await Promise.all([load(), sets.refresh()])
 }
 </script>

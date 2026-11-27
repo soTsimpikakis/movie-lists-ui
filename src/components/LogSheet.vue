@@ -14,6 +14,10 @@ const emit = defineEmits<{ logged: [watch: Watch]; close: [] }>()
 const rewards = useRewardsStore()
 
 const watchedOn = ref(todayIso())
+// No date: a library add ("before Movie Club"), for someone who meant "I've seen this" rather
+// than a new watch. Only for a film not yet in the library: it can be back-filled once.
+const undated = ref(false)
+const canUndate = !props.film.watch_count
 const reaction = ref<string | null>(null)
 const busy = ref(false)
 const error = ref('')
@@ -24,8 +28,8 @@ async function done() {
   try {
     const { events, ...watch } = await post<LoggedWatch>('/watches', {
       tmdb_id: props.film.tmdb_id,
-      watched_on: watchedOn.value,
-      reaction: reaction.value,
+      watched_on: undated.value ? null : watchedOn.value,
+      reaction: undated.value ? null : reaction.value,
     })
     emit('logged', watch)
     rewards.push(events)
@@ -57,13 +61,30 @@ async function done() {
 
       <div class="when">
         <span class="label">Watched</span>
-        <DateField v-model="watchedOn" />
+        <template v-if="!undated">
+          <DateField v-model="watchedOn" />
+          <button v-if="canUndate" type="button" class="plain small undate" @click="undated = true">
+            No date
+          </button>
+        </template>
+        <template v-else>
+          <span class="before">
+            <strong>Before Movie Club</strong>
+            <span class="muted">Goes to your Library, not the diary</span>
+          </span>
+          <button type="button" class="plain small undate" @click="undated = false">
+            Add a date
+          </button>
+        </template>
       </div>
 
-      <ReactionPicker v-model="reaction" />
+      <!-- A library add takes no reaction, like the Library's own adds. -->
+      <ReactionPicker v-if="!undated" v-model="reaction" />
 
       <p v-if="error" class="error">{{ error }}</p>
-      <button class="done" :disabled="busy" @click="done">Done</button>
+      <button class="done" :disabled="busy" @click="done">
+        {{ undated ? 'Add to library' : 'Done' }}
+      </button>
     </section>
   </div>
 </template>
@@ -134,6 +155,20 @@ h2 {
   gap: 0.75rem;
   padding: 0.75rem 0;
   border-block: 2px dashed var(--faint);
+}
+
+.undate {
+  margin-left: auto;
+}
+
+.before {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.before .muted {
+  font-size: 0.85rem;
 }
 
 .done {
