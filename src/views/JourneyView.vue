@@ -6,6 +6,7 @@ import type { Journey, JourneyLevel } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import LevelPips from '@/components/LevelPips.vue'
+import MissionsSection from '@/components/MissionsSection.vue'
 import PassportStamp from '@/components/PassportStamp.vue'
 import { formatDate } from '@/lib/format'
 import { decadeLabel, films, LEVEL_NAMES } from '@/lib/journey'
@@ -81,6 +82,9 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
 
     <p v-if="journey === null" class="muted">Loading…</p>
     <template v-else>
+      <!-- Missions first (design.md §6.6, M1); it shows nothing when there are none. -->
+      <MissionsSection class="missions-top" />
+
       <!-- The summary is a ticket stub of big numbers. -->
       <section class="ticket summary" aria-label="Summary">
         <div class="seats">
@@ -279,6 +283,10 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
 </template>
 
 <style scoped>
+.missions-top {
+  margin-bottom: 1.5rem;
+}
+
 .heading {
   display: flex;
   align-items: baseline;

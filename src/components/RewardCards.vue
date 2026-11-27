@@ -50,6 +50,10 @@ const egg = computed(() => {
   const e = current.value
   return e?.kind === 'easter_egg' ? e : null
 })
+const missionDone = computed(() => {
+  const e = current.value
+  return e?.kind === 'mission' ? e : null
+})
 const setsSummary = computed(() => {
   const e = current.value
   return e?.kind === 'sets_summary' ? e : null
@@ -106,6 +110,9 @@ function celebrate() {
             </span>
             <span v-else-if="filmMilestone" class="ticket-no" aria-hidden="true">
               {{ filmMilestone.milestone }} films
+            </span>
+            <span v-else-if="missionDone" class="ticket-no" aria-hidden="true">
+              ✓ {{ missionDone.year ?? 'Done' }}
             </span>
             <span v-else-if="egg" class="ticket-no egg-no" aria-hidden="true">
               {{ egg.year ?? 'Found' }}
@@ -284,6 +291,7 @@ function celebrate() {
 .set_completed .band,
 .set_polished .band,
 .log_milestone .band,
+.mission .band,
 .film_milestone .band,
 .watch_time .band {
   background: var(--mustard);

@@ -190,6 +190,17 @@ export interface EggEvent {
   film_title: string
 }
 
+/** A mission the user joined was finished by this log, or on joining (design.md §6.6). */
+export interface MissionEvent {
+  kind: 'mission'
+  key: string
+  title: string
+  finish_copy: string | null
+  /** The season's year; null for an open-ended mission. */
+  year: number | null
+  count: number
+}
+
 export interface LevelUp {
   subject: string
   level: number
@@ -209,6 +220,7 @@ export interface JourneySummaryEvent {
 export type RewardEvent =
   | SetRewardEvent
   | EggEvent
+  | MissionEvent
   | LogMilestoneEvent
   | FilmMilestoneEvent
   | WatchTimeEvent
@@ -379,4 +391,81 @@ export interface AdminJob {
   output: string
   started_at: string
   finished_at: string | null
+}
+
+// --- Missions (design.md §6.6) ------------------------------------------------------------
+
+export type GoalKind = 'count_matching' | 'all_of_list' | 'count_of_list'
+
+/** A live mission, as a user sees it. */
+export interface UserMission {
+  id: number
+  key: string
+  title: string
+  description: string
+  /** The current season; both null for an open-ended mission. */
+  starts_on: string | null
+  ends_on: string | null
+  join_until: string | null
+  goal_kind: GoalKind
+  /** A genre or keyword genre name, for count goals. */
+  goal_subject: string | null
+  films: { tmdb_id: number; title: string; year: number | null; seen: boolean }[]
+  rewatches_count: boolean
+  needed: number
+  joined: boolean
+  joinable: boolean
+  done: number
+  finished: boolean
+}
+
+export interface MissionsPage {
+  missions: UserMission[]
+  finished: { key: string; title: string; year: number | null; earned_at: string }[]
+}
+
+export interface MissionGoal {
+  kind: GoalKind
+  count?: number
+  genre?: string
+  keyword?: number
+  films?: number[]
+}
+
+/** What the mission form sends. */
+export interface MissionInput {
+  key: string
+  title: string
+  description: string
+  finish_copy: string | null
+  notes: string | null
+  starts_on: string | null
+  ends_on: string | null
+  repeats_yearly: boolean
+  join_until: string | null
+  announce_from: string | null
+  goal: MissionGoal
+  set_id: number | null
+  rewatches_count: boolean
+}
+
+export interface AdminMission extends MissionInput {
+  id: number
+  status: EggStatus
+  live_since: string | null
+  updated_at: string
+  films: { tmdb_id: number; title: string; year: number | null }[]
+  season_start: string | null
+  season_end: string | null
+  joined: number
+  finished: number
+  key_locked: boolean
+}
+
+/** If everyone had joined the latest season: counts only. */
+export interface MissionCheck {
+  season_start: string | null
+  season_end: string | null
+  finished: number
+  started: number
 }

@@ -43,6 +43,24 @@ const router = createRouter({
       meta: { admin: true },
     },
     {
+      path: '/admin/missions',
+      name: 'admin-missions',
+      component: () => import('@/views/AdminView.vue'),
+      meta: { admin: true },
+    },
+    {
+      path: '/admin/missions/new',
+      name: 'admin-mission-new',
+      component: () => import('@/views/MissionEditView.vue'),
+      meta: { admin: true },
+    },
+    {
+      path: '/admin/missions/:id',
+      name: 'admin-mission',
+      component: () => import('@/views/MissionEditView.vue'),
+      meta: { admin: true },
+    },
+    {
       path: '/admin/eggs/new',
       name: 'admin-egg-new',
       component: () => import('@/views/EggEditView.vue'),

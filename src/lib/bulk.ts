@@ -1,6 +1,7 @@
 import { post } from '@/api/client'
 import type {
   EggEvent,
+  MissionEvent,
   FilmMilestoneEvent,
   JourneySummaryEvent,
   LevelUp,
@@ -42,8 +43,8 @@ const SET_RANK = { set_progressed: 0, set_polished: 1, set_completed: 2 } as con
 export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
   if (batches.length === 1) return batches[0]!
   const sets = new Map<number, SetRewardEvent>()
-  // Back-fill is undated so it finds no eggs, but keep any that come, once each.
-  const eggs = new Map<string, EggEvent>()
+  // Back-fill is undated so it finds no eggs and finishes no missions, but keep any, once each.
+  const eggs = new Map<string, EggEvent | MissionEvent>()
   const stamps = new Set<string>()
   const genres = new Map<string, LevelUp>()
   const decades = new Map<string, LevelUp>()
@@ -88,7 +89,8 @@ export function mergeEvents(batches: RewardEvent[][]): RewardEvent[] {
         if (!watchTime || event.hours >= watchTime.hours) watchTime = event
         break
       case 'easter_egg':
-        eggs.set(`${event.key}-${event.year}`, event)
+      case 'mission':
+        eggs.set(`${event.kind}-${event.key}-${event.year}`, event)
         break
       default: {
         const before = sets.get(event.set_id)

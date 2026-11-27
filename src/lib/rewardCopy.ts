@@ -1,5 +1,6 @@
 import type {
   EggEvent,
+  MissionEvent,
   FilmMilestoneEvent,
   JourneyRewardEvent,
   JourneySummaryEvent,
@@ -146,6 +147,14 @@ function eggCopy(event: EggEvent): Copy {
   }
 }
 
+function missionCopy(event: MissionEvent): Copy {
+  return {
+    label: 'Mission complete',
+    headline: event.title,
+    body: event.finish_copy ?? `Done: ${films(event.count)}. Nicely watched.`,
+  }
+}
+
 const FILM_HEADLINES: Record<number, string> = {
   10: 'Ten films in',
   50: 'Fifty films',
@@ -242,6 +251,8 @@ export function rewardCopy(event: RewardCard): Copy {
       return filmMilestoneCopy(event)
     case 'easter_egg':
       return eggCopy(event)
+    case 'mission':
+      return missionCopy(event)
     case 'genre_level':
     case 'decade_level':
     case 'keyword_level':

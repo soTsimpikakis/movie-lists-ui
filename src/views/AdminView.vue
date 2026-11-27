@@ -5,15 +5,18 @@ import { useRoute } from 'vue-router'
 import { api } from '@/api/client'
 import type { AdminEgg, EggStatus, Genre } from '@/api/types'
 import AdminMaintenance from '@/components/AdminMaintenance.vue'
+import AdminMissionsList from '@/components/AdminMissionsList.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatDate } from '@/lib/format'
 import { matchText, whenText } from '@/lib/eggs'
 
 // The admin view (design.md §6.6): laptop-first and plain. Easter eggs (drafts are as easy to
-// find as live ones, so parked ideas don't get lost) and Maintenance. Missions join in 7C.
+// find as live ones, so parked ideas don't get lost), Missions, and Maintenance.
 const route = useRoute()
 const maintenance = computed(() => route.name === 'admin-maintenance')
+const missionsTab = computed(() => route.name === 'admin-missions')
+const eggsTab = computed(() => !maintenance.value && !missionsTab.value)
 
 const eggs = ref<AdminEgg[] | null>(null)
 const genres = ref<Genre[]>([])
@@ -52,11 +55,19 @@ onMounted(async () => {
       <nav class="tabs" aria-label="Admin sections">
         <RouterLink
           class="button-link small"
-          :class="maintenance ? 'plain' : 'mustard'"
+          :class="eggsTab ? 'mustard' : 'plain'"
           :to="{ name: 'admin' }"
-          :aria-current="maintenance ? undefined : 'page'"
+          :aria-current="eggsTab ? 'page' : undefined"
         >
           <AppIcon name="egg" :size="14" /> Easter eggs
+        </RouterLink>
+        <RouterLink
+          class="button-link small"
+          :class="missionsTab ? 'mustard' : 'plain'"
+          :to="{ name: 'admin-missions' }"
+          :aria-current="missionsTab ? 'page' : undefined"
+        >
+          <AppIcon name="trophy" :size="14" /> Missions
         </RouterLink>
         <RouterLink
           class="button-link small"
@@ -70,6 +81,7 @@ onMounted(async () => {
     </div>
 
     <AdminMaintenance v-if="maintenance" />
+    <AdminMissionsList v-else-if="missionsTab" />
 
     <template v-else>
       <div class="bar">
