@@ -46,6 +46,10 @@ const watchTime = computed(() => {
   const e = current.value
   return e?.kind === 'watch_time' ? e : null
 })
+const egg = computed(() => {
+  const e = current.value
+  return e?.kind === 'easter_egg' ? e : null
+})
 const setsSummary = computed(() => {
   const e = current.value
   return e?.kind === 'sets_summary' ? e : null
@@ -53,6 +57,7 @@ const setsSummary = computed(() => {
 const icon = computed(() => {
   if (current.value?.kind === 'set_progressed' || setsSummary.value) return 'sparkle'
   if (stamp.value || summary.value) return 'globe'
+  if (egg.value) return 'egg'
   return 'trophy'
 })
 const celebrating = ref(false)
@@ -102,6 +107,9 @@ function celebrate() {
             <span v-else-if="filmMilestone" class="ticket-no" aria-hidden="true">
               {{ filmMilestone.milestone }} films
             </span>
+            <span v-else-if="egg" class="ticket-no egg-no" aria-hidden="true">
+              {{ egg.year ?? 'Found' }}
+            </span>
             <h2>{{ copy.headline }}</h2>
             <template v-if="setEvent">
               <p v-if="setEvent.kind !== 'set_progressed'" class="set-name">{{ setEvent.title }}</p>
@@ -146,7 +154,10 @@ function celebrate() {
                 </span>
               </span>
             </template>
-            <p class="text">{{ copy.body }}</p>
+            <p class="text" :class="{ lore: egg?.lore }">{{ copy.body }}</p>
+            <p v-if="egg" class="found-with">
+              Found with {{ egg.film_title }}<template v-if="egg.hint"> · {{ egg.hint }}</template>
+            </p>
           </div>
         </article>
         <span v-if="celebrating" class="burst" aria-hidden="true">
@@ -326,6 +337,29 @@ h2 {
 .journey_summary .band {
   background: var(--parchment-ink);
   color: var(--parchment);
+}
+
+/* Easter eggs: a secret, so the band is ink-dark with mustard type, and the lore reads as a
+   quote. */
+.easter_egg .band {
+  background: var(--parchment-ink);
+  color: var(--mustard);
+}
+
+.egg-no {
+  border-color: var(--parchment-ink);
+  color: var(--parchment-ink);
+}
+
+.lore {
+  font-style: italic;
+}
+
+.found-with {
+  margin: -0.2rem 0 0;
+  font-family: var(--ticket-type);
+  font-size: 0.8rem;
+  color: var(--parchment-muted);
 }
 
 /* Tickets logged: the milestone as a serial number, typed and stamped in red. */

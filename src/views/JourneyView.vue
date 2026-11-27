@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import { api } from '@/api/client'
 import type { Journey, JourneyLevel } from '@/api/types'
 import AppHeader from '@/components/AppHeader.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import LevelPips from '@/components/LevelPips.vue'
 import PassportStamp from '@/components/PassportStamp.vue'
 import { formatDate } from '@/lib/format'
@@ -250,6 +251,26 @@ const tilt = (code: string) => ((code.charCodeAt(0) * 7 + code.charCodeAt(1) * 3
                 {{ t.trophy === 'gold' ? `✓ All ${t.total}` : `${t.watched} of ${t.total}` }}
               </span>
             </RouterLink>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Hidden until found, and never a total, so it can't read as a to-do list (§6.6). -->
+      <section v-if="journey.eggs.length" aria-labelledby="eggs">
+        <h3 id="eggs">
+          Easter eggs <span class="found">{{ journey.eggs.length }} found</span>
+        </h3>
+        <ul class="eggs">
+          <li v-for="e in journey.eggs" :key="e.key" class="egg">
+            <span class="egg-body">
+              <span class="egg-title">{{ e.title }}</span>
+              <span v-if="e.lore" class="egg-lore">{{ e.lore }}</span>
+              <span v-if="e.hint" class="egg-hint">{{ e.hint }}</span>
+            </span>
+            <span class="egg-stub">
+              <AppIcon name="egg" :size="14" />
+              <template v-if="e.years.length">{{ e.years.join(' · ') }}</template>
+            </span>
           </li>
         </ul>
       </section>
@@ -533,6 +554,73 @@ h3 {
   color: var(--on-mustard);
 }
 
+.found {
+  margin-left: 0.4rem;
+  font-family: var(--ticket-type);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.eggs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.egg {
+  display: flex;
+  align-items: stretch;
+  border: 2px solid var(--ticket-line);
+  border-radius: 0.6rem;
+  background: var(--parchment-paper);
+  color: var(--parchment-ink);
+  filter: var(--ticket-shadow);
+  overflow: hidden;
+}
+
+.egg-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.egg-title {
+  font-family: var(--ticket-title);
+  font-weight: 700;
+}
+
+.egg-lore {
+  font-style: italic;
+}
+
+.egg-hint {
+  font-family: var(--ticket-type);
+  font-size: 0.8rem;
+  color: var(--parchment-muted);
+}
+
+.egg-stub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0 0.9rem;
+  border-left: 2px dashed var(--ticket-line);
+  background: var(--parchment-ink);
+  color: var(--mustard);
+  font-family: var(--ticket-type);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+}
+
 .silver .trophy-stub {
   background: #c3c7cc;
   color: #2a1a12;
@@ -546,7 +634,8 @@ h3 {
     align-items: start;
   }
 
-  .trophies {
+  .trophies,
+  .eggs {
     grid-template-columns: repeat(2, 1fr);
   }
 

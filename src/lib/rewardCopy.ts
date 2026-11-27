@@ -1,4 +1,5 @@
 import type {
+  EggEvent,
   FilmMilestoneEvent,
   JourneyRewardEvent,
   JourneySummaryEvent,
@@ -137,6 +138,14 @@ function milestoneCopy(event: LogMilestoneEvent): Copy {
 }
 
 // Library sizes with a name of their own; the rest are "250 films".
+function eggCopy(event: EggEvent): Copy {
+  return {
+    label: 'Easter egg',
+    headline: event.title,
+    body: event.lore ?? `You found it with ${event.film_title}.`,
+  }
+}
+
 const FILM_HEADLINES: Record<number, string> = {
   10: 'Ten films in',
   50: 'Fifty films',
@@ -231,6 +240,8 @@ export function rewardCopy(event: RewardCard): Copy {
       return watchTimeCopy(event)
     case 'film_milestone':
       return filmMilestoneCopy(event)
+    case 'easter_egg':
+      return eggCopy(event)
     case 'genre_level':
     case 'decade_level':
     case 'keyword_level':

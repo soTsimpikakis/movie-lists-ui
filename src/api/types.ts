@@ -177,6 +177,19 @@ export interface WatchTimeEvent {
   next_at: number | null
 }
 
+/** A hidden easter egg found by this log: the right film on the right date (design.md §6.6). */
+export interface EggEvent {
+  kind: 'easter_egg'
+  key: string
+  title: string
+  lore: string | null
+  hint: string | null
+  /** The year of the window it was found in, for a yearly egg; null for a once-ever egg. */
+  year: number | null
+  /** The film whose log found it. */
+  film_title: string
+}
+
 export interface LevelUp {
   subject: string
   level: number
@@ -195,6 +208,7 @@ export interface JourneySummaryEvent {
 /** What a new watch changed, shown as reward cards. */
 export type RewardEvent =
   | SetRewardEvent
+  | EggEvent
   | LogMilestoneEvent
   | FilmMilestoneEvent
   | WatchTimeEvent
@@ -250,6 +264,16 @@ export interface Journey {
     trophy: 'gold' | 'silver'
     watched: number
     total: number
+  }[]
+  /** Easter eggs found, newest first. Only found ones: there's no total (design.md §6.6). */
+  eggs: {
+    key: string
+    title: string
+    lore: string | null
+    hint: string | null
+    /** Years found, for a yearly egg (empty for a once-ever egg). */
+    years: number[]
+    first_found_at: string
   }[]
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type {
+  EggEvent,
   FilmMilestoneEvent,
   JourneyRewardEvent,
   LogMilestoneEvent,
@@ -179,5 +180,30 @@ describe('rewardCopy for the Journey', () => {
         '1003 films in your library, each one counted once. That was the last milestone. Legendary.',
       ])
     })
+  })
+})
+
+describe('rewardCopy for easter eggs', () => {
+  const egg = (overrides: Partial<EggEvent>): EggEvent => ({
+    kind: 'easter_egg',
+    key: 'yippee-ki-yay',
+    title: 'Yippee-ki-yay',
+    lore: "Settled: it's a Christmas movie.",
+    hint: null,
+    year: 2025,
+    film_title: 'Die Hard',
+    ...overrides,
+  })
+
+  it('shows the title and the lore line', () => {
+    expect(rewardCopy(egg({}))).toEqual({
+      label: 'Easter egg',
+      headline: 'Yippee-ki-yay',
+      body: "Settled: it's a Christmas movie.",
+    })
+  })
+
+  it('names the film when the egg has no lore yet', () => {
+    expect(rewardCopy(egg({ lore: null })).body).toBe('You found it with Die Hard.')
   })
 })
