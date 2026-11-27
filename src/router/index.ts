@@ -29,6 +29,31 @@ const router = createRouter({
     { path: '/journey', name: 'journey', component: () => import('@/views/JourneyView.vue') },
     { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue') },
     { path: '/seen', name: 'seen', component: () => import('@/views/SeenView.vue') },
+    // The admin view (design.md §6.6): admins only; the API refuses everyone else too.
+    {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('@/views/AdminView.vue'),
+      meta: { admin: true },
+    },
+    {
+      path: '/admin/maintenance',
+      name: 'admin-maintenance',
+      component: () => import('@/views/AdminView.vue'),
+      meta: { admin: true },
+    },
+    {
+      path: '/admin/eggs/new',
+      name: 'admin-egg-new',
+      component: () => import('@/views/EggEditView.vue'),
+      meta: { admin: true },
+    },
+    {
+      path: '/admin/eggs/:id',
+      name: 'admin-egg',
+      component: () => import('@/views/EggEditView.vue'),
+      meta: { admin: true },
+    },
     {
       path: '/login',
       name: 'login',
@@ -52,6 +77,7 @@ router.beforeEach(async (to) => {
     return { name: 'login', query: to.fullPath === '/' ? {} : { next: to.fullPath } }
   }
   if (to.name === 'login' && auth.user) return { name: 'home' }
+  if (to.meta.admin && !auth.user?.is_admin) return { name: 'home' }
 })
 
 export default router

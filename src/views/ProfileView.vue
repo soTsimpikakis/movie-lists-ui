@@ -185,6 +185,15 @@ async function logout() {
       </button>
     </form>
 
+    <!-- Only admins see this (design.md §6.6); the API checks too. -->
+    <RouterLink
+      v-if="auth.user?.is_admin"
+      class="button-link mustard admin"
+      :to="{ name: 'admin' }"
+    >
+      <AppIcon name="egg" :size="14" /> Admin
+    </RouterLink>
+
     <button class="plain logout" @click="logout">
       <AppIcon name="logout" :size="14" /> Log out
     </button>
@@ -283,7 +292,8 @@ async function logout() {
   background: var(--bg);
 }
 
-.logout {
+.logout,
+.admin {
   margin-top: 0.25rem;
 }
 </style>

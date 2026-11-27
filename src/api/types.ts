@@ -311,3 +311,72 @@ export interface BrowsePage {
   role: string | null
   roles: string[]
 }
+
+// --- Admin (design.md §6.6) -------------------------------------------------------------
+
+/** Exactly one of these. Films are TMDB ids; a genre is its name; a keyword its TMDB id. */
+export interface EggMatch {
+  film?: number
+  films?: number[]
+  genre?: string
+  keyword?: number
+}
+
+export type EggStatus = 'draft' | 'live' | 'off'
+export type EggRepeat = 'once' | 'yearly'
+
+/** What the egg form sends. */
+export interface EggInput {
+  key: string
+  title: string
+  lore: string | null
+  hint: string | null
+  notes: string | null
+  start_month: number
+  start_day: number
+  end_month: number
+  end_day: number
+  only_year: number | null
+  match: EggMatch
+  min_count: number
+  repeat: EggRepeat
+}
+
+export interface AdminEgg extends EggInput {
+  id: number
+  status: EggStatus
+  live_since: string | null
+  updated_at: string
+  /** Titles for the films a film or list egg names. */
+  films: { tmdb_id: number; title: string; year: number | null }[]
+  /** Times found (users × years). */
+  found: number
+  /** First day of its next window; null when it has none left. */
+  next_on: string | null
+  /** The key can't change once the egg has gone live or been found. */
+  key_locked: boolean
+}
+
+/** Past matches per window: counts only, never whose. */
+export interface EggCheck {
+  years: { year: number; users: number; watches: number }[]
+}
+
+export interface EggTry {
+  finds: boolean
+  reason: string
+}
+
+export interface AdminCommand {
+  command: string
+  description: string
+}
+
+export interface AdminJob {
+  id: number
+  command: string
+  status: 'running' | 'done' | 'failed'
+  output: string
+  started_at: string
+  finished_at: string | null
+}

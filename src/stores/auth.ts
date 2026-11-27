@@ -10,6 +10,8 @@ export interface Me {
   display_name: string
   /** Show reward cards after logging (Profile > Settings). */
   celebrations: boolean
+  /** Manages easter eggs and missions (design.md §6.6). */
+  is_admin: boolean
 }
 
 export const useAuthStore = defineStore('auth', () => {
