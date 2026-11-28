@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { api, del, errorText, patch, put } from '@/api/client'
-import type { Watch } from '@/api/types'
+import type { SetSummary, Watch } from '@/api/types'
 import AppIcon from '@/components/AppIcon.vue'
 import DateField from '@/components/DateField.vue'
 import PosterImage from '@/components/PosterImage.vue'
@@ -17,6 +17,9 @@ const router = useRouter()
 const id = Number(route.params.id)
 
 const watch = ref<Watch | null>(null)
+// The sets this film is in, with the user's progress in each (ideabox "Showing which sets a
+// watch belongs to"). Extra: if it fails to load the page just goes without it.
+const sets = ref<SetSummary[]>([])
 const notFound = ref(false)
 const note = ref('')
 const status = ref('')
@@ -28,8 +31,20 @@ onMounted(async () => {
     note.value = watch.value.note ?? ''
   } catch {
     notFound.value = true
+    return
+  }
+  try {
+    sets.value = await api<SetSummary[]>(`/sets?film_id=${watch.value.film.id}`)
+  } catch {
+    sets.value = []
   }
 })
+
+/** "James Bond · Sean Connery" for a set inside a group, its own title otherwise. */
+const setName = (s: SetSummary) =>
+  s.section && s.group_title ? `${s.group_title} · ${s.label ?? s.title}` : s.title
+
+const complete = (s: SetSummary) => s.total > 0 && s.watched === s.total
 
 const save = (changes: Partial<Pick<Watch, 'watched_on' | 'reaction' | 'note'>>) =>
   run(async () => {
@@ -98,6 +113,22 @@ async function remove() {
           </button>
         </div>
       </div>
+
+      <section v-if="sets.length" class="sets" aria-labelledby="sets-label">
+        <span id="sets-label" class="label">In these sets</span>
+        <div class="set-buttons">
+          <RouterLink
+            v-for="s in sets"
+            :key="s.id"
+            :to="{ name: 'set', params: { id: s.id } }"
+            class="button-link small"
+            :class="complete(s) ? 'mustard' : 'plain'"
+          >
+            {{ setName(s) }}
+            <span class="count">{{ complete(s) ? '✓' : `${s.watched}/${s.total}` }}</span>
+          </RouterLink>
+        </div>
+      </section>
 
       <div class="stack">
         <div class="row">
@@ -188,6 +219,25 @@ h1 {
 
 .film-info button {
   margin-top: 0.4rem;
+}
+
+.sets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.set-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.count {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .row {
